@@ -1,0 +1,12 @@
+{
+  "user_id": "demo-user-001",
+  "items": [
+    {"id":"p1","category":"education.major","value":"AISW","enabled":true,"sensitivity":"normal"},
+    {"id":"p2","category":"career.goal","value":"클라우드 엔지니어","enabled":true,"sensitivity":"normal"},
+    {"id":"p3","category":"skills.current","value":"Python 기초","enabled":true,"sensitivity":"normal"},
+    {"id":"p4","category":"constraints.available_time","value":"하루 2시간","enabled":true,"sensitivity":"normal"},
+    {"id":"p5","category":"response_style.difficulty","value":"쉬운 설명 선호","enabled":true,"sensitivity":"normal"},
+    {"id":"p6","category":"constraints.mobility","value":"오래 걷기 어려움","enabled":true,"sensitivity":"sensitive"},
+    {"id":"p7","category":"health.condition","value":"(합성) 무릎 관절염","enabled":true,"sensitivity":"restricted"}
+  ]
+}

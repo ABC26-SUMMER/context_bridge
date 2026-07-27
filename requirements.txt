@@ -1,0 +1,6 @@
+streamlit>=1.36
+pydantic>=2.6
+PyYAML>=6.0
+pytest>=8.0
+google-genai>=1.0   # CB_LLM=gemini/live/auto
+groq>=0.15          # Gemini 장애·한도 초과 폴백 또는 CB_LLM=groq

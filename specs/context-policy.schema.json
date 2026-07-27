@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context-bridge.local/schemas/context-policy.schema.json",
+  "title": "Context Bridge Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_version",
+    "policy_id",
+    "defaults",
+    "profile_categories",
+    "sensitivity_policy",
+    "clarification",
+    "reason_codes",
+    "intents",
+    "global_rules",
+    "approval",
+    "llm_contract",
+    "audit"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "policy_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "policy_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unknown_key_action",
+        "unknown_category_action",
+        "unknown_intent_action",
+        "unknown_reason_code_action",
+        "evaluation_mode"
+      ],
+      "properties": {
+        "unknown_key_action": { "const": "reject" },
+        "unknown_category_action": { "const": "reject" },
+        "unknown_intent_action": { "const": "unsupported" },
+        "unknown_reason_code_action": { "const": "reject" },
+        "evaluation_mode": { "const": "fail_closed" }
+      }
+    },
+    "profile_categories": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sensitivity"],
+        "properties": {
+          "sensitivity": {
+            "enum": ["normal", "sensitive", "restricted"]
+          }
+        }
+      }
+    },
+    "sensitivity_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["normal", "sensitive", "restricted"],
+      "properties": {
+        "normal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["auto_candidate", "default_checked"],
+          "properties": {
+            "auto_candidate": { "const": true },
+            "default_checked": { "type": "boolean" }
+          }
+        },
+        "sensitive": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "auto_candidate",
+            "requires_purpose_rule",
+            "default_checked",
+            "require_approval_each_time"
+          ],
+          "properties": {
+            "auto_candidate": { "const": false },
+            "requires_purpose_rule": { "const": true },
+            "default_checked": { "const": false },
+            "require_approval_each_time": { "const": true }
+          }
+        },
+        "restricted": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "auto_candidate",
+            "read_from_stored_profile",
+            "allow_user_supplied_session_value",
+            "require_approval_each_time",
+            "persist_session_value",
+            "default_checked"
+          ],
+          "properties": {
+            "auto_candidate": { "const": false },
+            "read_from_stored_profile": { "const": false },
+            "allow_user_supplied_session_value": { "const": true },
+            "require_approval_each_time": { "const": true },
+            "persist_session_value": { "const": false },
+            "default_checked": { "const": false }
+          }
+        }
+      }
+    },
+    "clarification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trigger",
+        "max_rounds",
+        "on_still_missing",
+        "allow_generic_response"
+      ],
+      "properties": {
+        "trigger": { "const": "missing_required_slot" },
+        "max_rounds": { "const": 1 },
+        "on_still_missing": { "const": "unsupported" },
+        "allow_generic_response": { "type": "boolean" }
+      }
+    },
+    "reason_codes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["applies_to", "template"],
+        "properties": {
+          "applies_to": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string" }
+          },
+          "template": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "intents": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/intent"
+      }
+    },
+    "global_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reject_llm_ids_outside_candidates",
+        "restricted_never_auto",
+        "restricted_stored_values_never_read",
+        "sensitive_requires_purpose_rule",
+        "sensitive_requires_approval_each_time",
+        "approval_snapshot_is_only_personalization_input",
+        "response_style_requires_preview_approval",
+        "max_clarification_rounds",
+        "unsupported_must_not_fallback_to_supported_intent"
+      ],
+      "properties": {
+        "reject_llm_ids_outside_candidates": { "const": true },
+        "restricted_never_auto": { "const": true },
+        "restricted_stored_values_never_read": { "const": true },
+        "sensitive_requires_purpose_rule": { "const": true },
+        "sensitive_requires_approval_each_time": { "const": true },
+        "approval_snapshot_is_only_personalization_input": { "const": true },
+        "response_style_requires_preview_approval": { "const": true },
+        "max_clarification_rounds": { "const": 1 },
+        "unsupported_must_not_fallback_to_supported_intent": { "const": true }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot_fields",
+        "canonicalization",
+        "digest",
+        "composer_must_not_read_profile_repository",
+        "rejected_items_must_not_appear_in_prompt"
+      ],
+      "properties": {
+        "snapshot_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "allOf": [
+            {
+              "contains": { "const": "profile_item_id" }
+            },
+            {
+              "contains": { "const": "profile_item_version" }
+            },
+            {
+              "contains": { "const": "category" }
+            },
+            {
+              "contains": { "const": "value" }
+            },
+            {
+              "contains": { "const": "sensitivity" }
+            },
+            {
+              "contains": { "const": "reason_code" }
+            }
+          ],
+          "items": { "type": "string" }
+        },
+        "canonicalization": { "const": "json_sorted_keys_utf8" },
+        "digest": { "const": "sha256" },
+        "composer_must_not_read_profile_repository": { "const": true },
+        "rejected_items_must_not_appear_in_prompt": { "const": true }
+      }
+    },
+    "llm_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_ranker_labels",
+        "uncertain_default_checked",
+        "candidate_id_only",
+        "structured_output_validation",
+        "invalid_output_action",
+        "retry_must_not_expand_candidate_set"
+      ],
+      "properties": {
+        "allowed_ranker_labels": {
+          "const": ["relevant", "irrelevant", "uncertain"]
+        },
+        "uncertain_default_checked": { "const": false },
+        "candidate_id_only": { "const": true },
+        "structured_output_validation": { "const": "pydantic" },
+        "invalid_output_action": { "const": "retry_once_then_safe_fail" },
+        "retry_must_not_expand_candidate_set": { "const": true }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed_fields", "forbidden_fields"],
+      "properties": {
+        "allowed_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "forbidden_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "slotResolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_fields",
+        "profile_categories",
+        "on_profile_match"
+      ],
+      "properties": {
+        "question_fields": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "profile_categories": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "on_profile_match": {
+          "enum": ["propose_for_approval", "not_applicable"]
+        }
+      }
+    },
+    "sensitiveRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "reason_code", "purpose"],
+      "properties": {
+        "category": { "type": "string" },
+        "reason_code": { "type": "string" },
+        "purpose": { "type": "string", "minLength": 1 }
+      }
+    },
+    "intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description",
+        "required_slots",
+        "optional_slots",
+        "slot_resolution",
+        "allowed_categories",
+        "sensitive_purpose_rules"
+      ],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "required_slots": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "optional_slots": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "slot_resolution": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/slotResolution"
+          }
+        },
+        "allowed_categories": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "sensitive_purpose_rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sensitiveRule"
+          }
+        }
+      }
+    }
+  }
+}

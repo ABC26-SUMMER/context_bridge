@@ -1,0 +1,258 @@
+# context-policy.yaml
+# Context Bridge — Context Selection 정책의 단일 진실원천(single source of truth).
+# Policy Engine이 이 파일을 로드해 후보 생성·필터링·이유 부여를 수행한다.
+# 이 파일에 없는 범주/의도/이유코드는 런타임에서 거부한다.
+# 변경은 AGENTS.md의 Ask 권한(사용자 승인 필요).
+
+schema_version: 1
+policy_version: 2
+policy_id: context-bridge-mvp
+
+defaults:
+  unknown_key_action: reject
+  unknown_category_action: reject
+  unknown_intent_action: unsupported
+  unknown_reason_code_action: reject
+  evaluation_mode: fail_closed
+
+# ---------------------------------------------------------------------------
+# 1. 프로필 범주 분류 (ProfileItem.category 의 허용 집합 + 기본 민감도)
+#    sensitivity: normal | sensitive | restricted
+#    - normal    : 허용 의도에서 기본 후보 가능
+#    - sensitive : 해당 의도에 sensitive_purpose 규칙이 있을 때만 후보, 기본 체크 해제, 매회 승인
+#    - restricted: 저장 프로필에서는 읽지 않음. 사용자가 현재 질문에 직접 입력한 값만
+#                  세션 한정 후보로 만들 수 있고 Preview에서 매회 승인해야 함.
+# ---------------------------------------------------------------------------
+profile_categories:
+  basic.age_group:            { sensitivity: normal }
+  basic.occupation:           { sensitivity: normal }
+  education.major:            { sensitivity: normal }
+  education.level:            { sensitivity: normal }
+  career.goal:                { sensitivity: normal }
+  skills.current:             { sensitivity: normal }
+  preferences.place:          { sensitivity: normal }
+  preferences.food:           { sensitivity: normal }
+  preferences.activity:       { sensitivity: normal }
+  constraints.budget:         { sensitivity: normal }
+  constraints.transport:      { sensitivity: normal }
+  constraints.available_time: { sensitivity: normal }
+  constraints.mobility:       { sensitivity: sensitive }   # 보행/이동 제약 — 장애 관련 가능성
+  location.home_region:       { sensitivity: sensitive }   # 거주 지역 — 외출 시에만 목적 제한
+  response_style.length:      { sensitivity: normal }
+  response_style.format:      { sensitivity: normal }
+  response_style.difficulty:  { sensitivity: normal }
+  health.condition:           { sensitivity: restricted }  # 건강·질환
+  economic.status:            { sensitivity: restricted }  # 경제 상황
+
+# ---------------------------------------------------------------------------
+# 2. 민감도 처리 규칙 (Policy Engine 동작 정의)
+# ---------------------------------------------------------------------------
+sensitivity_policy:
+  normal:
+    auto_candidate: true
+    default_checked: true
+  sensitive:
+    auto_candidate: false          # 목적 규칙 통과 시에만 후보로 승격
+    requires_purpose_rule: true    # 의도별 sensitive_purpose_rules 필요
+    default_checked: false         # Preview에서 기본 해제
+    require_approval_each_time: true
+  restricted:
+    auto_candidate: false
+    read_from_stored_profile: false
+    allow_user_supplied_session_value: true
+    require_approval_each_time: true
+    persist_session_value: false
+    default_checked: false
+
+# ---------------------------------------------------------------------------
+# 3. 추가 질문(clarification) 정책
+#    확률값이 아니라 '필수 슬롯 미충족'으로만 트리거한다 (R-02).
+# ---------------------------------------------------------------------------
+clarification:
+  trigger: missing_required_slot
+  max_rounds: 1                    # MVP: 최대 1회 (INV/상태머신 CLARIFICATION_REQUIRED)
+  on_still_missing: unsupported
+  allow_generic_response: true
+
+# ---------------------------------------------------------------------------
+# 4. reason_code 카탈로그
+#    자유 LLM 문장 대신 코드→템플릿으로 이유를 생성한다 (R-01).
+#    화면 문구는 template 을 그대로 사용한다.
+# ---------------------------------------------------------------------------
+reason_codes:
+  MAJOR_CONTEXT:
+    applies_to: [education.major]
+    template: "전공 맥락에 맞춰 내용을 고르기 위해 사용합니다."
+  LEARNING_LEVEL:
+    applies_to: [education.level, skills.current]
+    template: "현재 수준에 맞는 순서를 정하기 위해 사용합니다."
+  LEARNING_GOAL:
+    applies_to: [career.goal]
+    template: "목표에 맞는 우선순위를 정하기 위해 사용합니다."
+  AVAILABLE_TIME:
+    applies_to: [constraints.available_time]
+    template: "가능한 시간에 맞춰 분량을 조절하기 위해 사용합니다."
+  BUDGET_LIMIT:
+    applies_to: [constraints.budget]
+    template: "추천 가능한 비용 범위를 정하기 위해 사용합니다."
+  TRANSPORT_ROUTE:
+    applies_to: [constraints.transport]
+    template: "이동 가능한 경로를 구성하기 위해 사용합니다."
+  MOBILITY_ACCESS:
+    applies_to: [constraints.mobility]
+    template: "이동과 접근성을 고려하기 위해 사용합니다."
+  PLACE_PREFERENCE:
+    applies_to: [preferences.place]
+    template: "선호하는 장소 유형을 반영하기 위해 사용합니다."
+  FOOD_PREFERENCE:
+    applies_to: [preferences.food]
+    template: "음식 취향을 반영하기 위해 사용합니다."
+  ACTIVITY_PREFERENCE:
+    applies_to: [preferences.activity]
+    template: "선호하는 활동을 반영하기 위해 사용합니다."
+  RESPONSE_LENGTH:
+    applies_to: [response_style.length]
+    template: "선호하는 답변 길이를 적용하기 위해 사용합니다."
+  RESPONSE_FORMAT:
+    applies_to: [response_style.format]
+    template: "선호하는 답변 형식을 적용하기 위해 사용합니다."
+  RESPONSE_DIFFICULTY:
+    applies_to: [response_style.difficulty]
+    template: "이해하기 쉬운 표현 수준을 적용하기 위해 사용합니다."
+  HOME_REGION:
+    applies_to: [location.home_region]
+    template: "출발 지역을 기준으로 이동 가능한 범위를 정하기 위해 사용합니다."
+
+# ---------------------------------------------------------------------------
+# 5. 지원 의도 (MVP: 정확히 3개)
+#    allowed_categories 에는 normal 범주만 나열한다.
+#    sensitive 범주는 sensitive_purpose_rules 를 통과할 때만 후보가 된다.
+#    여기 없는 의도는 '지원하지 않음'으로 처리한다.
+# ---------------------------------------------------------------------------
+intents:
+
+  study_plan:
+    description: "학습/공부 계획 추천"
+    required_slots: [goal]          # 없으면 clarification 1회
+    optional_slots: [deadline]
+    slot_resolution:
+      goal:
+        question_fields: [goal]
+        profile_categories: [career.goal]
+        on_profile_match: propose_for_approval
+    allowed_categories:
+      - education.major
+      - education.level
+      - career.goal
+      - skills.current
+      - constraints.available_time
+      - response_style.length
+      - response_style.format
+      - response_style.difficulty
+    sensitive_purpose_rules: []     # study_plan 은 sensitive 사용 목적 없음 → mobility 등 제외
+
+  outing_plan:
+    description: "만남/외출/장소 동선 계획"
+    required_slots: [region]        # 지역 미상 시 clarification 1회
+    optional_slots: [companion, date]
+    slot_resolution:
+      region:
+        question_fields: [region]
+        profile_categories: [location.home_region]
+        on_profile_match: propose_for_approval
+    allowed_categories:
+      - preferences.place
+      - preferences.food
+      - preferences.activity
+      - constraints.budget
+      - constraints.transport
+      - response_style.length
+      - response_style.format
+    sensitive_purpose_rules:
+      - category: constraints.mobility
+        reason_code: MOBILITY_ACCESS
+        purpose: "이동 경로와 접근성(계단·도보 거리)을 구성하기 위해"
+        # → outing 에서만 mobility(sensitive)가 후보로 승격, 기본 해제, 매회 승인
+      - category: location.home_region
+        reason_code: HOME_REGION
+        purpose: "출발 지역을 기준으로 이동 범위를 정하기 위해"
+
+  how_to_explanation:
+    description: "방법/사용법을 쉬운 단계로 설명"
+    required_slots: [task]          # 무엇을 설명할지 (보통 질문 자체에 포함)
+    optional_slots: []
+    slot_resolution:
+      task:
+        question_fields: [task]
+        profile_categories: []
+        on_profile_match: not_applicable
+    allowed_categories:
+      - skills.current              # 현재 수준으로 설명 난이도 조절
+      - response_style.length
+      - response_style.format
+      - response_style.difficulty
+    sensitive_purpose_rules: []
+
+# ---------------------------------------------------------------------------
+# 6. 전역 안전 규칙 (Policy Engine 최종 검문 — 코드로도 이중 확인)
+# ---------------------------------------------------------------------------
+global_rules:
+  reject_llm_ids_outside_candidates: true   # INV-2
+  restricted_never_auto: true               # INV-4
+  restricted_stored_values_never_read: true
+  sensitive_requires_purpose_rule: true     # sensitivity_policy 참조
+  sensitive_requires_approval_each_time: true
+  approval_snapshot_is_only_personalization_input: true  # INV-3
+  response_style_requires_preview_approval: true          # INV-10 / REQ-13
+  max_clarification_rounds: 1                       # INV-9 / REQ-11
+  unsupported_must_not_fallback_to_supported_intent: true
+
+# ---------------------------------------------------------------------------
+# 7. 승인 스냅샷 계약
+# ---------------------------------------------------------------------------
+approval:
+  snapshot_fields:
+    - profile_item_id
+    - profile_item_version
+    - category
+    - value
+    - sensitivity
+    - reason_code
+  canonicalization: json_sorted_keys_utf8
+  digest: sha256
+  composer_must_not_read_profile_repository: true
+  rejected_items_must_not_appear_in_prompt: true
+
+# ---------------------------------------------------------------------------
+# 8. LLM 입출력 계약
+# ---------------------------------------------------------------------------
+llm_contract:
+  allowed_ranker_labels: [relevant, irrelevant, uncertain]
+  uncertain_default_checked: false
+  candidate_id_only: true
+  structured_output_validation: pydantic
+  invalid_output_action: retry_once_then_safe_fail
+  retry_must_not_expand_candidate_set: true
+
+# ---------------------------------------------------------------------------
+# 9. 감사 로그 최소화
+# ---------------------------------------------------------------------------
+audit:
+  allowed_fields:
+    - interaction_id
+    - user_id_hash
+    - event_type
+    - intent
+    - policy_version
+    - candidate_ids
+    - approved_ids
+    - rejected_ids
+    - snapshot_hash
+    - outcome
+    - created_at
+  forbidden_fields:
+    - full_profile
+    - raw_prompt
+    - api_key
+    - access_token
+    - restricted_value
