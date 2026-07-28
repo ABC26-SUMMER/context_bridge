@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { profiles as fallbackProfiles } from "./data/profiles";
+import { demoAccounts, demoProfiles } from "./data/profiles";
 import { BridgeFlow } from "./components/BridgeFlow";
 import { ContextLog } from "./components/ContextLog";
 import { ContextPreview } from "./components/ContextPreview";
 import { Header } from "./components/Header";
+import { LoginScreen } from "./components/LoginScreen";
 import { ProfileManager } from "./components/ProfileManager";
 import { PromptComparison } from "./components/PromptComparison";
 import { PromptQualityPanel } from "./components/PromptQualityPanel";
@@ -11,24 +12,22 @@ import { QuestionPanel } from "./components/QuestionPanel";
 import { Sidebar } from "./components/Sidebar";
 import { analyzeContext } from "./services/contextSelector";
 import { detectIntent } from "./services/intentAnalyzer";
-import { loadProfiles } from "./services/profileRepository";
+import { loadAccounts, loadProfileForAccount } from "./services/profileRepository";
 import { composeBridgePrompt, getPlainInput } from "./services/promptComposer";
 import { getAnalyzedQuality, getGeneratedQuality, getIdleQuality } from "./services/qualityAnalyzer";
-import type { ContextAnalysis, DetectedIntent, InteractionRecord, SelectedContext, UserProfile } from "./types";
+import type { ContextAnalysis, DemoAccount, DetectedIntent, InteractionRecord, SelectedContext, UserProfile } from "./types";
 
 type QualityMode = "idle" | "analyzed" | "generated";
 
 export default function App() {
   const [activePage, setActivePage] = useState("main");
-  const [profiles, setProfiles] = useState<UserProfile[]>(fallbackProfiles);
-  const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const [accounts, setAccounts] = useState<DemoAccount[]>(demoAccounts);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(null);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [profileId, setProfileId] = useState(fallbackProfiles[0].id);
-  const currentProfile = useMemo(
-    () => profiles.find((profile) => profile.id === profileId) ?? profiles[0],
-    [profiles, profileId],
-  );
-  const [question, setQuestion] = useState(fallbackProfiles[0].defaultQuestion);
+  const [question, setQuestion] = useState(demoProfiles[0].defaultQuestion);
   const [intent, setIntent] = useState<DetectedIntent | null>(null);
   const [selected, setSelected] = useState<SelectedContext[]>([]);
   const [sensitive, setSensitive] = useState<SelectedContext[]>([]);
@@ -41,14 +40,15 @@ export default function App() {
   const [records, setRecords] = useState<InteractionRecord[]>([]);
 
   useEffect(() => {
-    loadProfiles()
-      .then((loadedProfiles) => {
-        setProfiles(loadedProfiles);
-        setProfileId(loadedProfiles[0].id);
-        setQuestion(loadedProfiles[0].defaultQuestion);
-      })
-      .finally(() => setLoadingProfiles(false));
+    loadAccounts()
+      .then(setAccounts)
+      .finally(() => setLoadingAccounts(false));
   }, []);
+
+  const currentAccount = useMemo(
+    () => accounts.find((account) => account.id === selectedAccountId) || null,
+    [accounts, selectedAccountId],
+  );
 
   const approvalPool = [...selected, ...sensitive];
   const approved = approvalPool.filter((field) => approvals[field.key]);
@@ -56,7 +56,7 @@ export default function App() {
   const selectedCount = approvalPool.length;
   const approvedCount = approved.length;
   const sensitiveCount = sensitive.length;
-  const uiMode = currentProfile.uiMode;
+  const uiMode = currentProfile?.uiMode || "standard";
   const easy = uiMode === "easy";
 
   const quality =
@@ -66,13 +66,26 @@ export default function App() {
         ? getAnalyzedQuality()
         : getIdleQuality();
 
-  const changeProfile = (nextProfileId: string) => {
-    const nextProfile = profiles.find((profile) => profile.id === nextProfileId) ?? profiles[0];
-    setProfileId(nextProfile.id);
-    resetAnalysis(nextProfile.defaultQuestion);
+  const login = async (accountId: string) => {
+    setLoadingProfile(true);
+    const profile = await loadProfileForAccount(accountId);
+    const account = accounts.find((item) => item.id === accountId) || demoAccounts[0];
+
+    setSelectedAccountId(accountId);
+    setCurrentProfile(profile);
+    setQuestion(profile?.defaultQuestion || (account.personaType === "older_adult" ? "내일 딸이랑 어디 가면 좋아?" : "이번 방학에 뭐 공부해야 해?"));
+    resetAnalysis(profile?.defaultQuestion);
+    setLoadingProfile(false);
   };
 
-  const resetAnalysis = (nextQuestion = currentProfile.defaultQuestion) => {
+  const logout = () => {
+    setSelectedAccountId(null);
+    setCurrentProfile(null);
+    resetAnalysis(demoProfiles[0].defaultQuestion);
+    setActivePage("main");
+  };
+
+  const resetAnalysis = (nextQuestion = currentProfile?.defaultQuestion || question) => {
     setIntent(null);
     setSelected([]);
     setSensitive([]);
@@ -86,6 +99,7 @@ export default function App() {
   };
 
   const analyze = async () => {
+    if (!currentProfile || !currentAccount) return;
     const normalizedQuestion = question.trim() || currentProfile.defaultQuestion;
     setAnalyzing(true);
 
@@ -93,7 +107,7 @@ export default function App() {
       const response = await fetch("/api/analyze-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: currentProfile.id, question: normalizedQuestion }),
+        body: JSON.stringify({ accountId: currentAccount.id, question: normalizedQuestion }),
       });
 
       if (!response.ok) throw new Error("backend analysis failed");
@@ -133,7 +147,7 @@ export default function App() {
   };
 
   const generatePrompt = () => {
-    if (!intent) return;
+    if (!intent || !currentProfile) return;
     const nextPlainInput = getPlainInput(question);
     const nextBridgePrompt = composeBridgePrompt(question, intent, approved, rejected);
     setPlainInput(nextPlainInput);
@@ -154,6 +168,10 @@ export default function App() {
     ]);
   };
 
+  if (!currentAccount || !currentProfile) {
+    return <LoginScreen accounts={accounts} loading={loadingAccounts || loadingProfile} onLogin={login} />;
+  }
+
   return (
     <div className="grid min-h-screen grid-cols-[280px_minmax(0,1fr)] max-lg:grid-cols-1">
       <Sidebar activePage={activePage} onPageChange={setActivePage} />
@@ -163,16 +181,15 @@ export default function App() {
             <Header selectedCount={selectedCount} approvedCount={approvedCount} sensitiveCount={sensitiveCount} uiMode={uiMode} />
             <div className="grid grid-cols-[0.95fr_1.25fr] items-start gap-5 max-lg:grid-cols-1">
               <QuestionPanel
-                profiles={profiles}
-                profileId={profileId}
+                account={currentAccount}
+                profile={currentProfile}
                 question={question}
-                loadingProfiles={loadingProfiles}
                 analyzing={analyzing}
                 uiMode={uiMode}
-                onProfileChange={changeProfile}
                 onQuestionChange={setQuestion}
                 onAnalyze={analyze}
                 onReset={() => resetAnalysis()}
+                onLogout={logout}
               />
               <ContextPreview
                 intent={intent}
@@ -193,7 +210,7 @@ export default function App() {
         )}
 
         {activePage === "profile" && (
-          <ProfileManager profiles={profiles} profileId={profileId} onProfileChange={changeProfile} />
+          <ProfileManager profiles={[currentProfile]} profileId={currentProfile.id} onProfileChange={() => undefined} />
         )}
 
         {activePage === "history" && <ContextLog records={records} />}

@@ -7,6 +7,7 @@ import type { ProfileField, UserProfile } from "../src/types";
 
 type SupabaseProfileRow = {
   id: string;
+  account_id: string;
   display_name: string;
   persona_type: string;
   profile_data: Record<string, unknown>;
@@ -26,17 +27,17 @@ export default async function handler(request: VercelRequest, response: VercelRe
     return;
   }
 
-  const { profileId, question } = request.body as { profileId?: string; question?: string };
+  const { accountId, question } = request.body as { accountId?: string; question?: string };
 
-  if (!profileId || !question) {
-    response.status(400).json({ error: "profileId and question are required" });
+  if (!accountId || !question) {
+    response.status(400).json({ error: "accountId and question are required" });
     return;
   }
 
-  const profile = await findProfile(profileId);
+  const profile = await findProfileByAccount(accountId);
 
   if (!profile) {
-    response.status(404).json({ error: "profile not found" });
+    response.status(404).json({ error: "profile not found for account" });
     return;
   }
 
@@ -46,12 +47,12 @@ export default async function handler(request: VercelRequest, response: VercelRe
   response.status(200).json(analysis);
 }
 
-async function findProfile(profileId: string): Promise<UserProfile | null> {
+async function findProfileByAccount(accountId: string): Promise<UserProfile | null> {
   if (supabase) {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, display_name, persona_type, profile_data")
-      .eq("id", profileId)
+      .select("id, account_id, display_name, persona_type, profile_data")
+      .eq("account_id", accountId)
       .maybeSingle();
 
     if (!error && data) {
@@ -59,7 +60,7 @@ async function findProfile(profileId: string): Promise<UserProfile | null> {
     }
   }
 
-  return demoProfiles.find((profile) => profile.id === profileId) || null;
+  return demoProfiles.find((profile) => profile.accountId === accountId) || null;
 }
 
 function mapSupabaseProfile(row: SupabaseProfileRow): UserProfile {
@@ -67,8 +68,9 @@ function mapSupabaseProfile(row: SupabaseProfileRow): UserProfile {
 
   return {
     id: row.id,
+    accountId: row.account_id,
     name: row.display_name,
-    group: easy ? "고령 사용자 / 쉬운 설명 필요" : "대학생 / 데모 계정",
+    group: easy ? "고령 사용자 / 쉬운 설명 필요" : "대학생 / 공기업 전산직 준비",
     personaType: row.persona_type,
     source: "supabase",
     uiMode: easy ? "easy" : "standard",

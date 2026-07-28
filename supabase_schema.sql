@@ -1,5 +1,14 @@
+create table if not exists public.demo_accounts (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  display_name text not null,
+  persona_type text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.profiles (
   id uuid primary key default gen_random_uuid(),
+  account_id uuid references public.demo_accounts(id) on delete cascade,
   display_name text not null,
   persona_type text not null,
   profile_data jsonb not null default '{}'::jsonb,
@@ -7,18 +16,37 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+alter table public.profiles add column if not exists account_id uuid references public.demo_accounts(id) on delete cascade;
+
+alter table public.demo_accounts enable row level security;
 alter table public.profiles enable row level security;
 
+drop policy if exists "Allow public demo account read" on public.demo_accounts;
 drop policy if exists "Allow public demo profile read" on public.profiles;
+
+create policy "Allow public demo account read"
+on public.demo_accounts
+for select
+using (true);
 
 create policy "Allow public demo profile read"
 on public.profiles
 for select
 using (true);
 
-insert into public.profiles (display_name, persona_type, profile_data)
+insert into public.demo_accounts (id, email, display_name, persona_type)
+values
+  ('11111111-1111-4111-8111-111111111111', 'ihyeon.demo@contextbridge.local', '전이현', 'university_student'),
+  ('22222222-2222-4222-8222-222222222222', 'youngja.demo@contextbridge.local', '김영자', 'older_adult')
+on conflict (email) do update
+set
+  display_name = excluded.display_name,
+  persona_type = excluded.persona_type;
+
+insert into public.profiles (account_id, display_name, persona_type, profile_data)
 values
   (
+    '11111111-1111-4111-8111-111111111111',
     '전이현',
     'university_student',
     '{
@@ -36,6 +64,7 @@ values
     }'::jsonb
   ),
   (
+    '22222222-2222-4222-8222-222222222222',
     '김영자',
     'older_adult',
     '{
@@ -47,4 +76,13 @@ values
       "accessibility_preferences": ["큰 글씨", "짧은 문장", "쉬운 표현", "단계별 안내"],
       "response_style": "짧고 쉬운 설명"
     }'::jsonb
-  );
+  )
+on conflict do nothing;
+
+update public.profiles
+set account_id = '11111111-1111-4111-8111-111111111111'
+where persona_type = 'university_student' and account_id is null;
+
+update public.profiles
+set account_id = '22222222-2222-4222-8222-222222222222'
+where persona_type = 'older_adult' and account_id is null;

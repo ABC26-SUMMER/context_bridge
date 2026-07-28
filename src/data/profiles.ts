@@ -1,8 +1,30 @@
-import type { UserProfile } from "../types";
+import type { DemoAccount, UserProfile } from "../types";
+
+export const demoAccounts: DemoAccount[] = [
+  {
+    id: "acct-jeon-ihyeon",
+    email: "ihyeon.demo@contextbridge.local",
+    displayName: "전이현",
+    personaType: "university_student",
+    description: "대학생 / 공기업 전산직 준비",
+    profileId: "profile-jeon-ihyeon",
+    source: "demo",
+  },
+  {
+    id: "acct-kim-youngja",
+    email: "youngja.demo@contextbridge.local",
+    displayName: "김영자",
+    personaType: "older_adult",
+    description: "고령 사용자 / 쉬운 설명 필요",
+    profileId: "profile-kim-youngja",
+    source: "demo",
+  },
+];
 
 export const demoProfiles: UserProfile[] = [
   {
-    id: "jeon-ihyeon",
+    id: "profile-jeon-ihyeon",
+    accountId: "acct-jeon-ihyeon",
     name: "전이현",
     group: "대학생 / 공기업 전산직 준비",
     personaType: "university_student",
@@ -25,7 +47,8 @@ export const demoProfiles: UserProfile[] = [
     ],
   },
   {
-    id: "kim-youngja",
+    id: "profile-kim-youngja",
+    accountId: "acct-kim-youngja",
     name: "김영자",
     group: "고령 사용자 / 쉬운 설명 필요",
     personaType: "older_adult",

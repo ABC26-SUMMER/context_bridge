@@ -1,6 +1,16 @@
 export type Sensitivity = "normal" | "sensitive";
 export type UiMode = "easy" | "standard" | "detail";
 
+export type DemoAccount = {
+  id: string;
+  email: string;
+  displayName: string;
+  personaType: string;
+  description: string;
+  profileId?: string;
+  source?: "supabase" | "demo";
+};
+
 export type ProfileField = {
   key: string;
   label: string;
@@ -12,6 +22,7 @@ export type ProfileField = {
 
 export type UserProfile = {
   id: string;
+  accountId: string;
   name: string;
   group: string;
   personaType: string;

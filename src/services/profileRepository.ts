@@ -1,50 +1,88 @@
-import { demoProfiles } from "../data/profiles";
-import type { ProfileField, UserProfile } from "../types";
+import { demoAccounts, demoProfiles } from "../data/profiles";
+import type { DemoAccount, ProfileField, UserProfile } from "../types";
 import { supabase } from "./supabaseClient";
+
+type SupabaseAccountRow = {
+  id: string;
+  email: string;
+  display_name: string;
+  persona_type: string;
+};
 
 type SupabaseProfileRow = {
   id: string;
+  account_id: string;
   display_name: string;
   persona_type: string;
   profile_data: Record<string, unknown>;
 };
 
-export async function loadProfiles(): Promise<UserProfile[]> {
-  if (!supabase) return demoProfiles;
+export async function loadAccounts(): Promise<DemoAccount[]> {
+  if (!supabase) return demoAccounts;
 
   const { data, error } = await supabase
-    .from("profiles")
-    .select("id, display_name, persona_type, profile_data")
+    .from("demo_accounts")
+    .select("id, email, display_name, persona_type")
     .order("display_name", { ascending: true });
 
   if (error || !data || data.length === 0) {
-    return demoProfiles;
+    return demoAccounts;
   }
 
-  return data.map(mapSupabaseProfile);
+  return data.map((row) => ({
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name,
+    personaType: row.persona_type,
+    description: row.persona_type === "older_adult" ? "고령 사용자 / 쉬운 설명 필요" : "대학생 / 공기업 전산직 준비",
+    source: "supabase",
+  }));
 }
 
-function mapSupabaseProfile(row: SupabaseProfileRow): UserProfile {
-  const profileData = row.profile_data || {};
-  const personaType = row.persona_type;
-  const easy = personaType === "older_adult";
+export async function loadProfileForAccount(accountId: string): Promise<UserProfile | null> {
+  if (!supabase) {
+    return demoProfiles.find((profile) => profile.accountId === accountId) || null;
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, account_id, display_name, persona_type, profile_data")
+    .eq("account_id", accountId)
+    .maybeSingle();
+
+  if (!error && data) {
+    return mapSupabaseProfile(data);
+  }
+
+  return demoProfiles.find((profile) => profile.accountId === accountId) || null;
+}
+
+export async function loadProfiles(): Promise<UserProfile[]> {
+  const accounts = await loadAccounts();
+  const profiles = await Promise.all(accounts.map((account) => loadProfileForAccount(account.id)));
+  return profiles.filter((profile): profile is UserProfile => Boolean(profile));
+}
+
+export function mapSupabaseProfile(row: SupabaseProfileRow): UserProfile {
+  const easy = row.persona_type === "older_adult";
 
   return {
     id: row.id,
+    accountId: row.account_id,
     name: row.display_name,
-    group: easy ? "고령 사용자 / 쉬운 설명 필요" : "대학생 / 데모 계정",
-    personaType,
+    group: easy ? "고령 사용자 / 쉬운 설명 필요" : "대학생 / 공기업 전산직 준비",
+    personaType: row.persona_type,
     source: "supabase",
     uiMode: easy ? "easy" : "standard",
     defaultQuestion: easy ? "내일 딸이랑 어디 가면 좋아?" : "이번 방학에 뭐 공부해야 해?",
     examples: easy
       ? ["내일 딸이랑 어디 가면 좋아?", "키오스크 쓰는 법 쉽게 알려줘"]
       : ["이번 방학에 뭐 공부해야 해?", "공기업 전산직 준비하려면 뭐부터 해야 해?"],
-    fields: toProfileFields(profileData),
+    fields: toProfileFields(row.profile_data || {}),
   };
 }
 
-function toProfileFields(profileData: Record<string, unknown>): ProfileField[] {
+export function toProfileFields(profileData: Record<string, unknown>): ProfileField[] {
   const fieldMeta: Record<string, { label: string; tags: string[]; sensitivity?: "normal" | "sensitive" }> = {
     occupation: { label: "현재 상태", tags: ["learning_plan"] },
     major: { label: "전공", tags: ["learning_plan"] },

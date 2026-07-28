@@ -207,16 +207,17 @@ LLM 적용 후 흐름:
 
 ## 이번 단계에서 추가한 방향
 
-- 샘플 프로필 드롭다운을 유지하되, Supabase 환경변수가 있으면 `profiles` 테이블에서 계정별 프로필을 읽도록 준비한다.
+- 샘플 프로필 드롭다운 대신 데모 로그인 화면을 먼저 보여준다.
+- Supabase 환경변수가 있으면 `demo_accounts`에서 로그인 계정 목록을 읽고, `profiles.account_id`로 해당 계정의 프로필을 조회한다.
 - 대표 계정은 전이현 대학생 계정과 김영자 고령 사용자 계정으로 제한한다.
-- 백엔드 `/api/analyze-context`에서 질문 의도 분석, 규칙 매칭, 민감정보 필터링을 수행한다.
+- 백엔드 `/api/analyze-context`에서 `accountId` 기준 프로필 조회, 질문 의도 분석, 규칙 매칭, 민감정보 필터링을 수행한다.
 - UI는 선택 정보, 민감 가능 정보, 제외 정보를 분리해서 보여준다.
 - 최종 프롬프트에는 사용자가 승인한 정보만 포함한다.
 
 ## 남은 작업
 
-1. 실제 Supabase 프로젝트 생성 후 `supabase_schema.sql` 실행
-2. Vercel 환경변수에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 등록
-3. 실제 로그인 인증을 붙일지, 해커톤용 데모 로그인만 유지할지 결정
+1. Supabase에서 갱신된 `supabase_schema.sql`을 다시 실행해 `demo_accounts`와 `profiles.account_id`를 반영
+2. 실제 Supabase Auth를 붙일지, 해커톤용 데모 로그인을 유지할지 결정
+3. 실제 로그인으로 확장할 경우 `profiles.account_id`를 `auth.users.id`와 연결
 4. 민감정보 정책을 더 세분화
 5. LLM API 연결 시 승인된 맥락만 서버에서 전달하도록 확장
