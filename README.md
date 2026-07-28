@@ -1,12 +1,36 @@
 # Context Bridge
 
-Context Bridge is an inclusive AI input assistant. It turns a short natural-language request into a richer prompt with user-approved context, constraints, and output format.
+Context Bridge는 계정별 사용자 정보를 데이터베이스에 저장하고, 짧은 질문의 의도를 분석해 필요한 정보만 규칙 기반으로 선별한 뒤, 사용자 승인 후 LLM에 전달할 고급 프롬프트를 만드는 사용자 통제형 AI 서비스입니다.
 
-## Run
+## MVP 흐름
+
+1. 데모 로그인 계정 선택
+2. 계정별 프로필 조회
+3. 백엔드 규칙 엔진에서 질문 의도 분석
+4. 필요한 정보, 민감 가능 정보, 제외 정보를 UI에 표시
+5. 사용자가 승인한 정보만 고급 프롬프트에 포함
+
+## 대표 계정
+
+- 전이현: 대학생, 공기업 전산직 준비
+- 김영자: 고령 사용자, 큰 글씨와 쉬운 설명 선호
+
+## Supabase 연결
+
+`.env`에 아래 값을 넣으면 DB 프로필을 조회합니다. 값이 없으면 로컬 데모 데이터로 동작합니다.
+
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
+
+테이블과 데모 데이터는 `supabase_schema.sql`을 기준으로 만들 수 있습니다.
+
+## 실행
 
 ```bash
 npm install
 npm run dev
 ```
 
-The earlier single-file sketch is preserved as `prototype.html`.
+초기 단일 파일 스케치는 `prototype.html`에 보존되어 있습니다.

@@ -14,6 +14,8 @@ export type UserProfile = {
   id: string;
   name: string;
   group: string;
+  personaType: string;
+  source?: "supabase" | "demo";
   uiMode: UiMode;
   defaultQuestion: string;
   examples: string[];
@@ -34,6 +36,14 @@ export type DetectedIntent = IntentRule & {
 
 export type SelectedContext = ProfileField & {
   reason: string;
+};
+
+export type ContextAnalysis = {
+  intent: DetectedIntent;
+  selected: SelectedContext[];
+  excluded: SelectedContext[];
+  sensitive: SelectedContext[];
+  source: "backend" | "frontend";
 };
 
 export type PromptTemplate = {

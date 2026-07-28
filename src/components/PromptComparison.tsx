@@ -7,10 +7,10 @@ type PromptComparisonProps = {
 export function PromptComparison({ plainInput, bridgePrompt, easy = false }: PromptComparisonProps) {
   return (
     <section className="mt-4 grid grid-cols-2 gap-4 max-lg:grid-cols-1">
-      <PromptCard title={easy ? "내가 쓴 짧은 말" : "사용자 원문 입력"} body={plainInput || "아직 프롬프트가 생성되지 않았습니다."} easy={easy} />
+      <PromptCard title={easy ? "내가 한 말" : "사용자 원문 입력"} body={plainInput || "아직 프롬프트가 생성되지 않았습니다."} easy={easy} />
       <PromptCard
         title={easy ? "AI에 넣을 문장" : "Context Bridge 고급 프롬프트"}
-        body={bridgePrompt || "Context Preview에서 정보를 승인한 뒤 생성하세요."}
+        body={bridgePrompt || "선택된 정보를 확인하고 프롬프트를 생성하세요."}
         bridge
         easy={easy}
       />

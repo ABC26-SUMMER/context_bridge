@@ -13,7 +13,7 @@ export function Header({ selectedCount, approvedCount, sensitiveCount, uiMode }:
   const easy = uiMode === "easy";
   const metricLabels = easy
     ? ["사용할 정보", "확인한 정보", "조심할 정보"]
-    : ["추가 맥락", "승인 맥락", "민감 맥락"];
+    : ["선택 맥락", "승인 맥락", "민감 맥락"];
 
   return (
     <header className="mb-6 flex items-start justify-between gap-6 max-lg:grid">
@@ -26,7 +26,7 @@ export function Header({ selectedCount, approvedCount, sensitiveCount, uiMode }:
           짧은 자연어를 고급 프롬프트로 바꾸는 다리
         </h2>
         <p className={`${easy ? "text-xl leading-9" : "leading-7"} mt-4 max-w-3xl text-ink`}>
-          AI를 잘 쓰는 사람이 직접 넣었을 조건, 목적, 제약, 출력 형식을 Context Bridge가 대신 구성합니다.
+          로그인 계정의 데모 프로필을 불러오고, 백엔드 규칙 엔진이 질문마다 필요한 정보만 골라 보여줍니다.
         </p>
         <p className={`${easy ? "text-lg" : "text-sm"} mt-3 max-w-3xl text-muted`}>
           {getUiModeDescription(uiMode)}

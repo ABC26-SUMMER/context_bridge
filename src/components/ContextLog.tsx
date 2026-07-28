@@ -10,8 +10,10 @@ export function ContextLog({ records }: ContextLogProps) {
     <section className="mx-auto max-w-6xl">
       <div className="mb-6">
         <div className="text-xs font-black uppercase text-bridge">Context Log</div>
-        <h2 className="mt-2 text-4xl font-black leading-tight max-sm:text-2xl">질문별 개인정보 활용 기록</h2>
-        <p className="mt-3 leading-7 text-muted">어떤 정보가 선택되고 승인됐는지 남겨 투명성을 확인합니다.</p>
+        <h2 className="mt-2 text-4xl font-black leading-tight max-sm:text-2xl">질문별 개인정보 사용 기록</h2>
+        <p className="mt-3 leading-7 text-muted">
+          어떤 정보가 선택되고, 어떤 정보가 승인 또는 제외됐는지 투명하게 남깁니다.
+        </p>
       </div>
 
       <div className="grid gap-3">
@@ -24,7 +26,7 @@ export function ContextLog({ records }: ContextLogProps) {
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
                 <Pill>{record.profile}</Pill>
                 <Pill>{record.intent}</Pill>
-                <Pill tone="sensitive">민감 {record.sensitiveCount}</Pill>
+                <Pill tone="sensitive">민감 가능 {record.sensitiveCount}</Pill>
                 <span>{record.createdAt}</span>
               </div>
               <div className="leading-6">

@@ -22,11 +22,11 @@ export function PromptQualityPanel({ quality, prompt, uiMode }: PromptQualityPan
     <section className="mt-4 border border-line bg-white">
       <div className="flex min-h-14 items-center justify-between border-b border-line px-5 py-4">
         <h3 className={`${easy ? "text-2xl" : "text-xl"} font-black`}>{easy ? "무엇이 좋아졌나요?" : "Prompt Quality"}</h3>
-        <Pill>{easy ? "입력 도움" : "격차가 줄어든 지점"}</Pill>
+        <Pill>{easy ? "입력 개선" : "추측 감소"}</Pill>
       </div>
       <div className="grid grid-cols-[0.9fr_1.1fr] gap-4 p-5 max-lg:grid-cols-1">
-        <QualityCard title={easy ? "짧은 질문에 빠진 것" : "원문 입력의 빈칸"} tone="warn" badge="Before" items={beforeItems} easy={easy} />
-        <QualityCard title={easy ? "AI가 도와서 넣은 것" : "추가된 프롬프트 역량"} tone="good" badge="After" items={afterItems} easy={easy} />
+        <QualityCard title={easy ? "짧은 질문의 빈칸" : "원문 입력의 한계"} tone="warn" badge="Before" items={beforeItems} easy={easy} />
+        <QualityCard title={easy ? "AI가 더 잘 알게 된 것" : "개선된 프롬프트 품질"} tone="good" badge="After" items={afterItems} easy={easy} />
       </div>
       <div className="flex justify-end px-5 pb-5">
         <button

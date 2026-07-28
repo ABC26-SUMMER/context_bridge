@@ -20,7 +20,7 @@ export function Sidebar({ activePage, onPageChange }: SidebarProps) {
         </div>
         <h1 className="text-3xl font-black leading-tight">Context Bridge</h1>
         <p className="mt-3 text-sm leading-6 text-white/70">
-          한마디만 해도, 현재 질문에 필요한 맥락을 붙여 더 좋은 AI 명령으로 바꿔주는 포용적 AI 데모
+          계정별 정보를 저장하고, 질문마다 필요한 맥락만 골라 승인 후 AI 프롬프트로 바꾸는 사용자 통제형 AI 데모
         </p>
       </div>
 
@@ -48,7 +48,7 @@ export function Sidebar({ activePage, onPageChange }: SidebarProps) {
       </nav>
 
       <div className="mt-8 border border-white/15 bg-white/10 p-4 text-sm leading-6 text-white/75">
-        이 MVP는 외부 API 없이 규칙 기반으로 동작합니다. 핵심은 답변 생성이 아니라, 짧은 자연어를 고급 프롬프트로 바꾸는 흐름입니다.
+        해커톤 MVP는 전이현 계정과 김영자 계정을 대표 사용자로 두고, 백엔드 규칙 엔진이 질문별 맥락을 선별하는 과정을 보여줍니다.
       </div>
     </aside>
   );
