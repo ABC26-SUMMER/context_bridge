@@ -93,7 +93,7 @@ export default function App() {
       const response = await fetch("/api/analyze-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile: currentProfile, question: normalizedQuestion }),
+        body: JSON.stringify({ profileId: currentProfile.id, question: normalizedQuestion }),
       });
 
       if (!response.ok) throw new Error("backend analysis failed");

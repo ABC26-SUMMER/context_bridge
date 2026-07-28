@@ -22,6 +22,9 @@ Context Bridge는 계정별 사용자 정보를 데이터베이스에 저장하�
 ```env
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 ```
 
 테이블과 데모 데이터는 `supabase_schema.sql`을 기준으로 만들 수 있습니다.

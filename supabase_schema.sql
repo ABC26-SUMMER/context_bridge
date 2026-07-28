@@ -7,6 +7,15 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+alter table public.profiles enable row level security;
+
+drop policy if exists "Allow public demo profile read" on public.profiles;
+
+create policy "Allow public demo profile read"
+on public.profiles
+for select
+using (true);
+
 insert into public.profiles (display_name, persona_type, profile_data)
 values
   (
