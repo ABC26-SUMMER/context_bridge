@@ -1,0 +1,8 @@
+{
+  "name": "Context Bridge",
+  "description": "User-controlled personalized AI assistant that manages personal profiles/constraints and lets users inspect, approve, and filter context before sending to Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "name": "context-bridge",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx server.ts",
+    "build": "vite build",
+    "start": "node --import tsx server.ts",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "seed:demo": "node --import tsx scripts/seed-demo-users.ts"
+  },
+  "dependencies": {
+    "@google/genai": "2.13.0",
+    "@supabase/supabase-js": "^2.110.9",
+    "clsx": "^2.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "framer-motion": "^12.4.7",
+    "lucide-react": "^0.475.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.7",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.4",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@types/supertest": "^7.2.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "supertest": "^7.2.2",
+    "tailwindcss": "^4.0.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vitest": "^4.1.10"
+  }
+}

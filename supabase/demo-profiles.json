@@ -1,0 +1,41 @@
+[
+  {
+    "email": "student@contextbridge.demo",
+    "password_env": "DEMO_STUDENT_PASSWORD",
+    "display_name": "전이현",
+    "persona_type": "university_student",
+    "profile_name": "대학생 프로필",
+    "icon": "🎓",
+    "description": "AI·SW학과 3학년 데모 계정",
+    "cards": [
+      ["education_major", "profile", "전공", "AI·SW학과", ["교육", "전공"], "normal"],
+      ["education_grade", "profile", "학년", "3학년", ["교육", "학년"], "normal"],
+      ["career_goal", "goal", "진로 목표", "공기업 전산직", ["취업", "직무"], "normal"],
+      ["certificate_goal", "goal", "자격증 목표", "SQLD, 정보처리기사", ["자격증", "공부"], "normal"],
+      ["current_skills", "profile", "현재 기술", "Python, React, Supabase", ["개발", "기술"], "normal"],
+      ["available_time", "constraint", "공부 가능 시간", "평일 1시간", ["시간", "공부"], "normal"],
+      ["transport", "constraint", "이동 수단", "대중교통", ["이동", "외출"], "normal"],
+      ["budget", "constraint", "예산", "대학생 수준", ["예산", "외출"], "normal"],
+      ["place_preference", "preference", "장소 선호", "조용한 장소, 사진 찍기 좋은 공간", ["장소", "외출"], "normal"],
+      ["response_style", "preference", "답변 방식", "구체적이고 단계적인 설명", ["답변", "설명"], "normal"]
+    ]
+  },
+  {
+    "email": "senior@contextbridge.demo",
+    "password_env": "DEMO_SENIOR_PASSWORD",
+    "display_name": "김영자",
+    "persona_type": "older_adult",
+    "profile_name": "고령 사용자 프로필",
+    "icon": "👵",
+    "description": "쉬운 설명과 이동 접근성 데모 계정",
+    "cards": [
+      ["age_group", "profile", "연령대", "70대", ["연령"], "sensitive"],
+      ["digital_literacy", "constraint", "디지털 숙련도", "초급", ["디지털", "설명"], "sensitive"],
+      ["mobility", "constraint", "이동 접근성", "장시간 보행 어려움", ["이동", "접근성", "외출"], "sensitive"],
+      ["transport", "constraint", "이동 수단", "버스와 지하철", ["이동", "외출"], "normal"],
+      ["place_preference", "preference", "장소 선호", "좌석이 있는 곳, 실내 공간", ["장소", "외출"], "normal"],
+      ["accessibility", "preference", "접근성 선호", "큰 글씨, 짧은 문장, 쉬운 표현, 단계별 안내", ["접근성", "설명"], "sensitive"],
+      ["response_style", "preference", "답변 방식", "짧고 쉬운 설명", ["답변", "설명"], "normal"]
+    ]
+  }
+]
