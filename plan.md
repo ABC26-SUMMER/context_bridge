@@ -1,743 +1,526 @@
-﻿# Context Bridge Plan
+# Context Bridge 세션 1 작업 계획
 
-## 0. 주어진 글 분석 요약
+## 0. 기준 문서와 입력 자료
 
-### 공모 주제 해석
+이 계획은 아래 자료를 먼저 확인한 뒤 작성했다.
 
-지정공모 주제는 포용적 AI다. 핵심은 고성능 모델과 기술 발전의 혜택이 특정 집단이나 AI 활용 능력이 높은 사람에게만 집중되지 않고, 노인, 어린이, 장애인, 경제적 약자, 비전공자, 디지털 취약계층 등 다양한 사용자가 공정하게 누릴 수 있도록 하는 것이다.
+- `README.md`
+- `docs/FRONTEND_HANDOFF.md`
+- 전달 ZIP: `context-bridge-frontend-handoff (4).zip`
+- ZIP 주요 파일:
+  - `contracts/types.ts`
+  - `contracts/API_CONTRACT.md`
+  - `contracts/error-codes.ts`
+  - `contracts/mock-server.mjs`
+  - `contracts/mocks/*.json`
+  - `contracts/.env.frontend.example`
 
-따라서 Context Bridge는 단순한 개인화 서비스가 아니라, AI 사용 과정에서 발생하는 입력 격차와 맥락 구성 격차를 줄이는 접근성 기술로 정의해야 한다.
+작업 브랜치 기준:
 
-### 기존 글의 핵심 주장
-
-기존 생성형 AI는 사용자가 좋은 결과를 얻기 위해 스스로 좋은 입력을 만들어야 한다.
-
-- 자신의 상황을 정리한다.
-- 어떤 조건이 중요한지 판단한다.
-- 그 조건을 긴 프롬프트로 작성한다.
-- AI가 어떤 개인정보를 활용하는지 추측한다.
-- AI에 넣은 입력이 자신의 상황을 충분히 반영했는지 다시 검토한다.
-
-이 과정은 AI 사용 경험이 많거나 디지털 역량이 높은 사람에게는 편의성 문제지만, 고령자, 어린이, 비전공자, 디지털 취약계층에게는 접근성 문제다.
-
-Context Bridge는 이 문제를 다음 방식으로 해결한다.
-
-- 사용자의 정보, 취향, 목표, 제약조건을 개인 프로필로 관리한다.
-- 사용자가 짧게 질문해도 AI가 질문 의도를 분석한다.
-- 현재 질문에 필요한 프로필 정보만 선택한다.
-- 선택된 정보와 선택 이유를 Context Preview로 보여준다.
-- 사용자가 승인한 정보만 최종 프롬프트 생성에 활용한다.
-
-### 보완해야 할 관점
-
-기존 초안은 Memory와 Context Selection의 차별성을 잘 설명하고 있다. 다만 공모 주제에 더 맞추려면 다음 관점을 강화해야 한다.
-
-- Context Bridge를 개인화 도구가 아니라 포용적 AI 접근성 레이어로 설명한다.
-- 고령자뿐 아니라 어린이, 장애인, 비전공자, 외국어 사용자, 경제적 약자까지 사용자를 확장한다.
-- "좋은 프롬프트를 쓸 수 있는 사람만 좋은 AI 결과를 얻는다"는 문제를 핵심 사회 문제로 둔다.
-- 개인정보 활용 투명성과 사용자 통제를 포용적 AI의 신뢰 조건으로 강조한다.
-- MVP는 모든 기능을 다 만들기보다 질문별 맥락 선택, Preview, 승인, 고급 프롬프트 비교를 명확히 보여주는 데 집중한다.
-
-## 1. 프로젝트 한 문장 정의
-
-Context Bridge는 사용자의 짧은 자연어 입력을 질문별 개인 맥락이 포함된 고급 프롬프트로 바꿔주는 포용적 AI 입력 보조 서비스다.
-
-## 2. 핵심 문제 정의
-
-### 문제 1. AI 활용 품질이 프롬프트 작성 능력에 좌우된다
-
-현재 AI는 사용자가 충분한 맥락을 담아 질문해야 좋은 결과를 낸다. 그러나 많은 사용자는 어떤 정보를 입력해야 하는지 모른다.
-
-예를 들어 사용자는 보통 이렇게 묻는다.
-
-```text
-내일 친구 만나는데 뭐 하지?
+```bash
+main -> develop -> feature/frontend
 ```
 
-하지만 좋은 결과를 얻는 프롬프트를 만들려면 실제로는 다음 정보가 필요하다.
+## 1. 제품 방향 이해
 
-- 예산
-- 이동 방식
-- 음식 취향
-- 장소 취향
-- 동선 선호
-- 출력 형식 선호
+Context Bridge는 단순한 챗봇 UI가 아니라 포용적 AI를 위한 입력 보조 레이어다.
 
-이 차이가 AI 활용 격차를 만든다.
+핵심 문제는 고성능 AI의 결과 품질이 사용자의 프롬프트 작성 능력에 크게 좌우된다는 점이다. 일반인, 비전공자, 고령 사용자, 디지털 취약계층은 자신의 상황, 목표, 취향, 제약조건을 긴 프롬프트로 구조화하기 어렵다.
 
-### 문제 2. 취약 사용자는 맥락을 구조화하는 부담이 크다
+Context Bridge는 사용자가 짧게 질문해도 사용자 프로필과 컨텍스트 카드 DB를 바탕으로 현재 질문에 필요한 맥락만 골라 보여주고, 사용자가 승인한 정보만 백엔드 AI 처리에 전달한다.
 
-고령자, 어린이, 비전공자, 장애인, 디지털 취약계층은 다음 과정에서 더 큰 어려움을 겪을 수 있다.
+이번 세션에서 지켜야 할 제품 원칙은 다음과 같다.
 
-- 긴 문장을 입력하기 어렵다.
-- 전문용어나 복잡한 설명을 이해하기 어렵다.
-- 자신의 조건을 체계적으로 정리하기 어렵다.
-- AI가 추가 질문을 반복하면 사용을 포기하기 쉽다.
-- AI에 넣을 명령문을 어떻게 구성해야 하는지 알기 어렵다.
+- 기존 ChatGPT형 채팅 UI를 유지한다.
+- 사용자의 짧은 질문 -> 맥락 후보 -> 사용자 승인 -> AI 응답 흐름을 유지한다.
+- 개인정보는 자동으로 조용히 쓰지 않고, 어떤 정보가 왜 쓰이는지 보여준다.
+- 카드 값은 답변 생성 요청에서 다시 보내지 않고, 승인한 카드 ID만 보낸다.
+- 실제 API 실패 시 mock 데이터로 자동 대체하지 않고 오류와 재시도 UI를 보여준다.
 
-### 문제 3. 개인화와 개인정보 통제 사이의 균형이 어렵다
+## 2. 이번 세션 범위
 
-개인화가 잘 되려면 사용자 정보가 필요하다. 그러나 사용자는 다음을 알기 어렵다.
+이번 세션은 `contracts/mock API 연동`만 진행한다.
 
-- 이번 질문에 어떤 정보가 사용되는가
-- 왜 그 정보가 필요한가
-- 민감정보가 포함되는가
-- 오래된 정보가 반영되는가
-- 새 정보가 자동 저장되는가
+### 포함
 
-Context Bridge는 개인화의 성능만 높이는 것이 아니라, 사용자가 정보 활용 과정을 이해하고 통제할 수 있게 해야 한다.
+- ZIP의 `contracts/` 폴더를 팀 repo에 적용한다.
+- ZIP의 계약 타입을 프론트에서 import할 수 있게 연결한다.
+- `VITE_API_BASE_URL=http://localhost:4000` 기준 API client를 만든다.
+- `node mock-server.mjs`로 mock API 서버를 실행할 수 있게 정리한다.
+- mock API 기준으로 질문 분석, 승인 후보, AI 응답, 기억 후보 처리 API를 연결한다.
+- loading, empty, error, retry 상태를 기존 채팅 UI 안에 붙인다.
+- 개발 환경은 mock API를 사용하고, 배포 환경은 실제 API 주소만 사용하도록 분리한다.
+- 실제 API 호출 실패를 mock fallback으로 덮지 않는다.
 
-## 3. 해결 방향
+### 제외
 
-### 핵심 아이디어
+아래는 사용자가 전달한 전체 요구사항에는 포함되어 있지만, 세션 1 범위가 아니므로 이번 브랜치에서 구현하지 않는다.
 
-Context Bridge는 사용자의 질문과 개인 프로필 사이에 위치한 맥락 연결 계층이다.
+- Supabase 회원가입
+- Supabase 로그인, 로그아웃, 세션 유지
+- `account_profiles` 실제 연동
+- `context_cards` 실제 CRUD
+- `context_proposals`, `approval_snapshots`, `audit_logs`, `memory_candidates` 실제 저장
+- 질문 기록의 Supabase 저장
+- DB 컬럼 변경 또는 schema 임의 수정
+- 기존 채팅 UI의 대규모 재설계
 
-```text
-사용자 짧은 질문
-        ↓
-질문 의도 분석
-        ↓
-필요한 사용자 정보 선택
-        ↓
-Context Preview 표시
-        ↓
-사용자 승인 또는 제외
-        ↓
-승인된 정보만 반영한 프롬프트 생성
-```
+위 작업은 다음 세션에서 별도 브랜치로 진행한다.
 
-### 차별점
+## 3. 보안과 환경변수 규칙
 
-| 구분 | 일반 LLM | AI Memory | Context Bridge |
-| --- | --- | --- | --- |
-| 개인화 방식 | 사용자가 직접 입력 | 과거 정보를 기억 | 질문별 필요한 정보만 선택 |
-| 사용자 부담 | 높음 | 중간 | 낮음 |
-| 정보 활용 투명성 | 낮음 | 낮음 | 높음 |
-| 민감정보 통제 | 어려움 | 설정 의존 | 항목별 승인 |
-| 포용적 AI 기여 | 제한적 | 제한적 | 입력 부담과 이해 부담 감소 |
-
-## 4. 목표 사용자
-
-### 1차 사용자
-
-- 생성형 AI를 처음 쓰는 사람
-- 긴 프롬프트 작성이 어려운 사람
-- 고령자
-- 디지털 취약계층
-- 인지적, 언어적 입력 부담이 있는 사람
-- AI에게 어떤 정보를 줘야 할지 모르는 사람
-
-### 2차 사용자
-
-- 어린이와 청소년
-- 비전공자
-- 장애인
-- 외국어 사용에 어려움이 있는 사람
-- 경제적 제약 조건을 자주 고려해야 하는 사람
-- 학습, 생활, 일정, 장소 추천을 반복적으로 받는 사람
-
-### MVP 대표 사용자
-
-MVP에서는 다음 사용자를 대표 사용자로 둔다.
+절대 커밋하지 않는다.
 
 ```text
-AI를 사용하고 싶지만 어떤 정보를 입력해야 하는지 모르거나,
-자신의 취향과 상황을 매번 반복해서 설명하기 어려운 사용자
+.env
+.env.local
+.env.*.local
+.vercel/
+SUPABASE_SECRET_KEY
+SUPABASE_SERVICE_ROLE_KEY
+AI API key
 ```
 
-## 5. 핵심 가치
+저장소에는 값이 비어 있는 예시만 둔다.
 
-### 포용성
+```env
+VITE_APP_NAME=Context Bridge
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+VITE_API_BASE_URL=http://localhost:4000
+```
 
-좋은 프롬프트를 작성할 수 있는 사람만 좋은 AI 결과를 얻는 구조를 줄인다.
+ZIP의 `.env.frontend.example`에는 `VITE_SUPABASE_ANON_KEY`가 들어 있으므로, repo에 반영할 때는 다음 이름으로 바꾼다.
 
-### 접근성
+```env
+VITE_SUPABASE_PUBLISHABLE_KEY=
+```
 
-짧은 질문, 쉬운 선택, 단계별 확인을 통해 AI에 넣을 입력을 구성하는 인지 부담을 낮춘다.
+사용자가 전달한 실제 Supabase URL과 publishable key는 `.env.local`에만 넣고 커밋하지 않는다.
 
-### 투명성
+## 4. 현재 코드 기준 영향 범위
 
-AI가 어떤 사용자 정보를 선택했는지, 왜 선택했는지 보여준다.
+현재 프론트는 Vite + React + TypeScript + Tailwind 구조다.
 
-### 사용자 통제
-
-사용자가 승인한 정보만 프롬프트 생성에 사용한다.
-
-### 안전한 개인화
-
-민감정보, 비활성화 정보, 오래된 정보, 신규 저장 후보를 분리해 관리한다.
-
-## 6. MVP 범위
-
-MVP는 "질문별 맥락 선택과 사용자 승인"이 실제로 작동한다는 것을 보여주는 데 집중한다.
-
-### 포함 기능
-
-1. 개인 프로필 관리
-   - 기본 정보
-   - 취향
-   - 목표
-   - 제약조건
-   - 출력 선호 방식
-   - 정보별 활성화 여부
-   - 민감도 표시
-
-2. 짧은 질문 입력
-   - 사용자가 자연어로 짧게 질문한다.
-   - 예시 질문 버튼을 제공한다.
-
-3. 질문 의도 분석
-   - 질문의 목적을 분류한다.
-   - 필요한 프로필 범주를 추정한다.
-   - 신뢰도가 낮으면 추가 질문을 1회만 제안한다.
-
-4. Context Selection
-   - 질문과 관련 있는 프로필 정보만 선택한다.
-   - 관련 없는 정보는 제외한다.
-
-5. Context Preview
-   - 사용할 정보 목록을 보여준다.
-   - 각 정보의 선택 이유를 쉬운 문장으로 설명한다.
-   - 사용자가 항목별로 승인 또는 제외한다.
-
-6. 고급 프롬프트 생성
-   - 승인된 정보만 최종 프롬프트에 포함한다.
-   - 사용자 원문 입력과 Context Bridge 고급 프롬프트를 비교해 보여준다.
-
-7. 사용 기록
-   - 질문
-   - 선택된 정보
-   - 승인된 정보
-   - 제외된 정보
-   - 생성된 고급 프롬프트
-   - 생성 시각을 저장한다.
-
-8. 신규 정보 후보
-   - 대화에서 새 취향이나 조건이 발견되면 후보로만 제안한다.
-   - 자동 저장하지 않는다.
-
-### MVP에서 제외하거나 후순위로 둘 기능
-
-- 완전한 계정 시스템
-- 클라우드 동기화
-- 복잡한 권한 관리
-- 장기 대화 메모리
-- 음성 입력과 음성 출력
-- 벡터 DB 기반 비정형 개인 데이터 검색
-- 보호자 승인 기반 어린이 모드
-- 다국어 접근성 전체 구현
-
-## 7. 주요 사용자 시나리오
-
-### 시나리오 A. 고령자 생활 추천
-
-사용자 질문:
+핵심 파일:
 
 ```text
-딸이랑 내일 어디 가지?
+src/App.tsx
+src/components/ChatWorkspace.tsx
+src/components/Sidebar.tsx
+src/components/ContextLog.tsx
+src/services/contextSelector.ts
+src/services/intentAnalyzer.ts
+src/services/promptComposer.ts
+src/services/profileRepository.ts
+src/types.ts
 ```
 
-프로필에서 선택되는 정보:
+현재 흐름:
 
-- 오래 걷기 어려움
-- 대중교통 이용
-- 조용한 실내 공간 선호
-- 계단이 적은 장소 선호
-- 쉬운 설명 선호
+- 로그인 화면은 demo account 선택 방식이다.
+- `App.tsx`의 `analyze()`가 `/api/analyze-context`를 직접 호출한다.
+- 호출 실패 시 `detectIntent()`와 `analyzeContext()`로 프론트 fallback 분석을 한다.
+- `generatePrompt()`는 `composeBridgePrompt()`로 프론트에서 고급 프롬프트를 만든다.
 
-Context Bridge 결과:
+세션 1에서 바꿀 방향:
 
-- 이동이 짧은 실내 장소 추천
-- 계단과 걷는 시간을 고려한 동선
-- 짧고 쉬운 문장
-- 단계별 일정
+- `/api/analyze-context` 직접 호출을 제거하거나 우회하고, 계약의 `POST /api/proposals`를 사용한다.
+- 프론트 fallback 분석은 API mode에서 자동 대체로 쓰지 않는다.
+- 승인 후 `POST /api/proposals/:proposalId/generate`를 호출한다.
+- 답변 생성 요청에는 `approvedIds`만 보낸다.
+- `composeBridgePrompt()`는 API mode에서는 사용하지 않고, API 응답을 화면에 표시한다.
 
-### 시나리오 B. 대학생 학습 계획
+## 5. Contract 적용 방식
 
-사용자 질문:
+ZIP의 계약 타입은 백엔드와 프론트가 공유하는 기준이므로 기존 `src/types.ts`에 무리하게 합치지 않는다.
+
+권장 구조:
 
 ```text
-이번 방학에 뭐 공부해야 해?
+contracts/
+  API_CONTRACT.md
+  README.md
+  error-codes.ts
+  mock-server.mjs
+  mocks/
+  types.ts
+mock-server.mjs
+src/services/apiClient.ts
+src/services/contractApi.ts
+src/services/contractMappers.ts
 ```
 
-선택되는 정보:
+처리 기준:
 
-- 전공
-- 현재 학년
-- 진로 목표
-- 현재 기술 수준
-- 하루 학습 가능 시간
-- 선호 학습 방식
+- `contracts/types.ts`는 API 계약 타입의 단일 기준으로 둔다.
+- 기존 `src/types.ts`는 UI 도메인 타입으로 유지한다.
+- `contractMappers.ts`에서 API 타입을 UI 타입으로 변환한다.
+- `tsconfig.app.json`의 include에 `contracts`를 추가해 타입 검사를 통과시킨다.
+- root의 `mock-server.mjs`는 `node mock-server.mjs` 실행을 맞추기 위한 wrapper로 둔다.
 
-제외되는 정보:
+## 6. API 연결 계획
 
-- 음식 취향
-- 장소 취향
-- 이동 방식
+### 6.1 공통 API client
 
-Context Bridge 결과:
-
-- 사용자의 목표에 맞는 학습 우선순위
-- 주간 계획
-- 부담 없는 학습량
-- 다음 행동 제안
-
-### 시나리오 C. 어린이 또는 비전공자 설명
-
-사용자 질문:
+새 파일:
 
 ```text
-인공지능이 뭐야?
+src/services/apiClient.ts
 ```
 
-선택되는 정보:
+역할:
 
-- 쉬운 설명 선호
-- 예시 중심 출력 선호
-- 긴 글 읽기 어려움
-- 현재 이해 수준
+- `import.meta.env.VITE_API_BASE_URL`을 읽는다.
+- base URL이 있으면 `http://localhost:4000/api/...`로 호출한다.
+- base URL이 없으면 같은 도메인의 `/api/...`로 호출할 수 있게 한다.
+- `Authorization: Bearer <token>`을 붙인다.
+- JSON 요청/응답을 공통 처리한다.
+- HTTP status 기준으로 오류를 분기한다.
+- 오류 발생 시 mock fallback을 실행하지 않는다.
 
-Context Bridge 결과:
-
-- 전문용어를 줄인 설명
-- 짧은 문장
-- 생활 속 예시
-- 마지막에 확인 질문 제공
-
-### 시나리오 D. 경제적 제약이 있는 사용자 추천
-
-사용자 질문:
+오류 상태 예시:
 
 ```text
-이번 주말에 할 만한 거 추천해줘.
+401: 로그인 필요 또는 토큰 만료
+400: 잘못된 입력 또는 답변 생성 실패
+403: 권한 없음
+404: 프로필 또는 리소스 없음
+500: 서버 오류
+network error: 서버 연결 실패
 ```
 
-선택되는 정보:
+### 6.2 Bootstrap
 
-- 예산 범위
-- 이동 방식
-- 무료 또는 저비용 활동 선호
-- 거주 지역
-- 긴 이동 비선호
-
-Context Bridge 결과:
-
-- 비용이 낮은 활동 우선 추천
-- 교통비까지 고려한 선택지
-- 무리한 소비를 유도하지 않도록 지시한 프롬프트
-
-## 8. 화면 계획
-
-### 화면 1. 프로필 관리
-
-목적:
-
-사용자가 개인화에 사용할 정보를 등록하고 통제한다.
-
-구성:
-
-- 샘플 프로필 불러오기
-- 기본 정보 입력
-- 취향 입력
-- 목표 입력
-- 제약조건 입력
-- 출력 형식 선택
-- 정보별 활성화 토글
-- 민감정보 표시
-- 수정 및 삭제
-
-### 화면 2. Context Bridge 메인
-
-목적:
-
-질문 입력부터 프롬프트 생성까지 핵심 흐름을 수행한다.
-
-구성:
-
-- 서비스명과 한 줄 설명
-- 질문 입력창
-- 예시 질문 버튼
-- 분석된 질문 의도
-- 선택된 맥락 정보
-- 선택 이유
-- 승인 또는 제외 체크박스
-- 사용자 원문 입력
-- Context Bridge 고급 프롬프트
-- 신규 정보 저장 후보
-
-### 화면 3. 사용 기록
-
-목적:
-
-개인정보 활용 과정의 투명성을 보여준다.
-
-구성:
-
-- 과거 질문 목록
-- 사용된 정보
-- 제외된 정보
-- 선택 이유
-- 생성 프롬프트
-- 저장 후보 처리 결과
-
-## 9. 시스템 설계
-
-### 모듈 구성
+계약:
 
 ```text
-Streamlit UI
-        ↓
-Profile Manager
-        ↓
-Intent Analyzer
-        ↓
-Context Selector
-        ↓
-Policy Filter
-        ↓
-Context Preview
-        ↓
-User Approval
-        ↓
-Prompt Composer
-        ↓
-Prompt Generator
-        ↓
-Interaction Logger
-        ↓
-Memory Candidate Extractor
+GET /api/bootstrap
+Authorization: Bearer demo-student | demo-senior
 ```
 
-### 모듈별 역할
+응답:
 
-| 모듈 | 역할 |
-| --- | --- |
-| Profile Manager | 사용자 프로필 저장, 조회, 수정, 삭제 |
-| Intent Analyzer | 질문 의도와 필요한 정보 범주 분석 |
-| Context Selector | 현재 질문에 관련 있는 프로필 정보 선택 |
-| Policy Filter | 비활성 정보와 민감정보를 필터링 |
-| Context Preview | 사용할 정보와 이유를 사용자에게 표시 |
-| User Approval | 사용자의 승인과 제외 결과 저장 |
-| Prompt Composer | 질문과 승인된 정보만 결합 |
-| Prompt Generator | 사용자 원문 입력과 고급 프롬프트 생성 |
-| Interaction Logger | 질문별 정보 활용 기록 저장 |
-| Memory Candidate Extractor | 신규 저장 후보만 추출하고 승인 대기 |
+```ts
+BootstrapResponse
+```
 
-## 10. 데이터 설계
+프론트 처리:
 
-### 사용자 프로필 예시
+- 기존 demo login UI는 유지한다.
+- 대학생 계정 선택 시 `demo-student` 토큰을 사용한다.
+- 고령 사용자 계정 선택 시 `demo-senior` 토큰을 사용한다.
+- `BootstrapResponse.profiles`를 현재 UI의 `UserProfile` 형태로 매핑한다.
+- `ContextProfile.contexts`를 현재 승인 사이드바에서 쓸 수 있는 field 형태로 매핑한다.
+- bootstrap 실패 시 로그인/프로필 로딩 오류와 재시도 버튼을 보여준다.
+
+### 6.3 질문 분석과 승인 후보
+
+계약:
+
+```text
+POST /api/proposals
+```
+
+요청:
+
+```ts
+CreateProposalRequest
+```
+
+응답:
+
+```ts
+ProposalResponse
+```
+
+프론트 처리:
+
+- body에는 `profileId`, `query`만 보낸다.
+- 응답의 `proposalId`를 상태에 보관한다.
+- 응답의 `evaluations`를 승인 후보 UI에 표시한다.
+- `suggested: true`인 카드만 기본 체크한다.
+- `exclusionReason`이 있는 카드는 제외 목록과 사유로 표시한다.
+- `valueVisible: false` 카드는 값 대신 라벨만 표시하고 체크박스를 비활성화한다.
+- `selectionMode`는 "규칙 선별" 또는 "AI 선별" 배지로 표시할 수 있다.
+
+현재 UI 매핑:
+
+```text
+EvaluatedContext.context.title       -> field.label
+EvaluatedContext.context.content     -> field.value
+EvaluatedContext.reason              -> field.reason
+EvaluatedContext.context.privacyLevel -> sensitivity
+EvaluatedContext.suggested           -> initial approval
+EvaluatedContext.exclusionReason     -> excluded
+```
+
+주의:
+
+- confidential 카드는 content가 마스킹될 수 있으므로 UI에서도 실제 값에 의존하지 않는다.
+- 프론트가 카드 ID나 updatedAt을 만들지 않는다.
+
+### 6.4 승인 후 AI 응답 생성
+
+계약:
+
+```text
+POST /api/proposals/:proposalId/generate
+```
+
+요청:
+
+```ts
+GenerateAnswerRequest
+```
+
+body:
 
 ```json
 {
-  "user_id": "demo-user-001",
-  "basic_info": {
-    "age_group": {
-      "value": "60대",
-      "enabled": true,
-      "sensitivity": "normal"
-    }
-  },
-  "preferences": {
-    "place": {
-      "values": ["조용한 실내 공간", "계단이 적은 장소"],
-      "enabled": true,
-      "sensitivity": "normal"
-    }
-  },
-  "constraints": {
-    "transport": {
-      "value": "대중교통",
-      "enabled": true,
-      "sensitivity": "normal"
-    },
-    "mobility": {
-      "value": "오래 걷기 어려움",
-      "enabled": true,
-      "sensitivity": "sensitive"
-    }
-  },
-  "response_style": {
-    "length": "short",
-    "format": "step_by_step",
-    "difficulty": "easy"
-  }
+  "approvedIds": ["context-id-1", "context-id-2"],
+  "includeRawComparison": true
 }
 ```
 
-### 의도 분석 결과 예시
+프론트 처리:
 
-```json
-{
-  "intent": "outing_plan",
-  "confidence": 0.91,
-  "required_context": [
-    {
-      "category": "preferences.place",
-      "reason": "선호하는 장소 유형을 반영하기 위해 필요합니다."
-    },
-    {
-      "category": "constraints.transport",
-      "reason": "이동 가능한 동선을 구성하기 위해 필요합니다."
-    },
-    {
-      "category": "constraints.mobility",
-      "reason": "걷는 시간이 부담되지 않도록 추천하기 위해 필요합니다."
-    }
-  ],
-  "requires_clarification": false,
-  "clarification_question": null
-}
-```
+- 승인된 카드 객체나 content를 보내지 않는다.
+- 승인된 `contextId` 배열만 보낸다.
+- 응답의 `contextBridgeAnswer`를 채팅 응답으로 표시한다.
+- `rawAnswer`가 있으면 비교 UI에 표시한다.
+- `usedContexts`, `usedContextsCount`, `snapshotHash`를 사용 기록 또는 상세 영역에 표시한다.
+- `auditLog`는 현재 `ContextLog`의 `InteractionRecord` 형태로 매핑한다.
 
-### Context Preview 예시
+### 6.5 기억 후보
 
-```json
-{
-  "context_id": "ctx-001",
-  "category": "constraints.mobility",
-  "label": "이동 제약",
-  "value": "오래 걷기 어려움",
-  "reason": "걷는 시간이 긴 장소를 피하기 위해 사용합니다.",
-  "sensitivity": "sensitive",
-  "approved": false
-}
-```
-
-## 11. 기술 스택
-
-### MVP 기술
-
-| 영역 | 기술 | 이유 |
-| --- | --- | --- |
-| UI | Streamlit | 빠른 MVP 구현, 데모에 적합 |
-| 언어 | Python | LLM 처리와 데이터 처리에 적합 |
-| 데이터 검증 | Pydantic | LLM 구조화 출력 검증 |
-| 저장소 | JSON 또는 SQLite | 로컬 MVP에 충분 |
-| AI | LLM API | 의도 분석, 맥락 선택, 프롬프트 생성 |
-| 상태 관리 | Streamlit Session State | 단계별 승인 흐름 유지 |
-
-### 확장 기술
-
-| 기능 | 후보 기술 |
-| --- | --- |
-| 비정형 프로필 검색 | ChromaDB |
-| 계정 및 클라우드 저장 | Supabase |
-| 음성 입력 | STT |
-| 음성 출력 | TTS |
-| 접근성 UI 강화 | 큰 글씨 모드, 고대비 모드 |
-| 다국어 지원 | 번역 API 또는 다국어 LLM |
-
-## 12. 개발 단계
-
-### 1단계. 기획 정리
-
-목표:
-
-공모 주제에 맞는 문제 정의와 서비스 메시지를 정리한다.
-
-작업:
-
-- 포용적 AI 관점으로 문제 정의 재작성
-- 대표 사용자 3-4명 확정
-- MVP 핵심 기능 확정
-- 데모 시나리오 확정
-
-산출물:
-
-- `plan.md`
-- 서비스 한 문장 소개
-- 사용자 시나리오
-
-### 2단계. 프로필과 데이터 구조 구현
-
-목표:
-
-질문별로 사용할 수 있는 구조화 프로필을 만든다.
-
-작업:
-
-- 샘플 사용자 프로필 작성
-- 프로필 CRUD 구현
-- 정보별 enabled, sensitivity 필드 구현
-- 사용 기록 데이터 구조 작성
-
-산출물:
-
-- 샘플 프로필 데이터
-- 프로필 관리 화면
-
-### 3단계. Context Selection 구현
-
-목표:
-
-짧은 질문에서 필요한 사용자 정보만 선택한다.
-
-작업:
-
-- 질문 의도 분류 프롬프트 작성
-- required_context 구조화 출력 정의
-- Pydantic 검증 모델 작성
-- 프로필 정보와 required_context 매칭
-- 민감정보와 비활성 정보 필터링
-
-산출물:
-
-- Intent Analyzer
-- Context Selector
-- Policy Filter
-
-### 4단계. Context Preview와 승인 흐름 구현
-
-목표:
-
-사용자가 어떤 정보가 사용되는지 확인하고 통제하게 한다.
-
-작업:
-
-- 선택된 정보 목록 표시
-- 선택 이유 표시
-- 민감정보 표시
-- 승인 및 제외 체크박스 구현
-- 승인된 정보만 최종 프롬프트에 전달
-
-산출물:
-
-- Context Preview UI
-- User Approval 로직
-
-### 5단계. 프롬프트 생성과 비교 구현
-
-목표:
-
-Context Bridge의 효과를 데모에서 명확히 보여준다.
-
-작업:
-
-- 사용자 원문 입력 표시
-- 승인 정보 기반 고급 프롬프트 생성
-- 두 프롬프트 비교 UI 구현
-- 반영된 조건 요약 표시
-
-산출물:
-
-- 사용자 원문 입력 vs 고급 프롬프트 비교 화면
-
-### 6단계. 사용 기록과 신규 정보 후보 구현
-
-목표:
-
-개인정보 활용 투명성과 사용자 통제를 강화한다.
-
-작업:
-
-- 질문별 선택 정보 저장
-- 승인 및 제외 정보 저장
-- 생성 프롬프트 저장
-- 신규 프로필 후보 추출
-- 저장, 이번만 사용, 저장 안 함 선택지 구현
-
-산출물:
-
-- 사용 기록 화면
-- 신규 정보 후보 승인 UI
-
-### 7단계. 포용적 AI 데모 완성
-
-목표:
-
-공모 주제에 맞게 "누구에게 어떤 도움을 주는지"가 보이는 데모를 만든다.
-
-작업:
-
-- 고령자 시나리오 데모
-- 대학생 또는 비전공자 시나리오 데모
-- 어린이 또는 쉬운 설명 시나리오 데모
-- 경제적 제약 시나리오 데모
-- 발표용 스토리라인 정리
-
-산출물:
-
-- 실행 가능한 MVP
-- 데모 시나리오
-- 발표 자료 초안
-
-## 13. 평가 기준
-
-### 사용자 관점 지표
-
-- 사용자가 입력해야 하는 문장 길이가 줄었는가
-- 추가 질문 횟수가 줄었는가
-- 생성된 프롬프트가 사용자 상황을 더 잘 담고 있는가
-- 사용자는 어떤 정보가 프롬프트에 들어갔는지 이해했는가
-- 사용자는 원하지 않는 정보를 쉽게 제외할 수 있었는가
-- 프롬프트가 바로 다른 AI에 넣을 수 있을 만큼 구체적인가
-
-### 기술 관점 지표
-
-- 질문 의도 분석 결과가 적절한가
-- 필요한 프로필 범주 선택이 정확한가
-- 관련 없는 정보가 제외되는가
-- 민감정보가 불필요하게 선택되지 않는가
-- 승인되지 않은 정보가 최종 프롬프트에 포함되지 않는가
-- 구조화 출력 검증이 실패할 때 안전하게 처리되는가
-
-### 포용적 AI 관점 지표
-
-- AI 초보자도 짧은 질문으로 사용할 수 있는가
-- 고령자나 비전공자도 Context Preview를 이해할 수 있는가
-- 출력 형식이 사용자의 이해 수준에 맞게 조정되는가
-- 개인정보 통제가 복잡하지 않은가
-- 취약 사용자의 인지 부담을 실제로 줄이는가
-
-## 14. 리스크와 대응
-
-| 리스크 | 설명 | 대응 |
-| --- | --- | --- |
-| 잘못된 맥락 선택 | AI가 질문과 무관한 정보를 고를 수 있음 | Preview와 사용자 승인 단계 제공 |
-| 과도한 개인정보 활용 | 개인화 과정에서 민감정보가 불필요하게 포함될 수 있음 | Policy Filter와 민감도 표시 |
-| Preview 자체가 복잡해짐 | 취약 사용자에게 확인 단계가 부담이 될 수 있음 | 쉬운 문장, 기본 선택, 핵심 정보 우선 표시 |
-| 오래된 정보 반영 | 과거 정보가 현재와 맞지 않을 수 있음 | 비활성화, 수정, 최근 확인 시점 표시 |
-| 신규 정보 자동 저장 | 사용자가 원치 않는 정보가 저장될 수 있음 | 후보로만 제안하고 승인 후 저장 |
-| 어린이 데이터 보호 | 어린이 프로필은 더 엄격한 보호가 필요함 | MVP에서는 데모 수준으로 제한, 확장 단계에서 보호자 승인 설계 |
-| 프롬프트 책임 문제 | 생성된 프롬프트가 부적절한 결과를 유도할 수 있음 | 건강, 법률, 금융 등 고위험 영역은 제한 또는 안내 문구 적용 |
-
-## 15. 최종 발표 메시지
-
-### 핵심 문장
+계약:
 
 ```text
-Context Bridge는 사용자를 단순히 기억하는 AI가 아니라,
-현재 질문에 필요한 사용자 맥락만 골라 보여주고,
-사용자가 승인한 정보만 활용해 더 좋은 프롬프트를 만드는 포용적 AI 서비스입니다.
+POST /api/memory-candidates/:candidateId
 ```
 
-### 공모 주제 연결 문장
+요청:
+
+```ts
+ResolveMemoryRequest
+```
+
+프론트 처리:
+
+- `memoryCandidates`가 있으면 답변 아래에 "기억할까요?" UI를 보여준다.
+- 자동 저장하지 않는다.
+- 사용자가 `save` 또는 `ignore`를 선택할 때만 API를 호출한다.
+- save 성공 시 응답의 `context`가 있으면 화면 상태에 반영할 준비를 한다.
+
+mock 서버 기본 응답은 `answer.success.json`이므로 memory 후보가 안 보일 수 있다. memory UI 테스트가 필요하면 mock 서버에서 `answer.withMemory.json`을 쓰도록 변경하거나 별도 테스트 fixture를 사용한다.
+
+## 7. 추천 질문 처리
+
+현재 ZIP의 `API_CONTRACT.md`에는 별도 추천 질문 endpoint가 없다.
+
+따라서 세션 1에서는 기존 `profile.examples` 기반 추천 질문 버튼을 유지한다. API 계약에 추천 질문 endpoint가 추가되면 다음 형태로 분리한다.
 
 ```text
-고성능 AI의 혜택은 좋은 프롬프트를 쓸 수 있는 사람에게만 돌아가서는 안 됩니다.
-Context Bridge는 노인, 어린이, 비전공자, 디지털 취약계층도 짧은 질문만으로
-자신에게 맞는 AI 결과를 얻을 수 있는 입력을 만들 수 있게 하는 맥락 접근성 기술입니다.
+src/services/recommendationApi.ts
 ```
 
-### 차별성 문장
+그 전까지는 추천 질문 UI를 새 계약에 맞지 않는 임의 API로 만들지 않는다.
+
+## 8. UI 상태 계획
+
+기존 ChatGPT형 UI는 유지하고 상태만 추가한다.
+
+필요 상태:
 
 ```text
-기존 Memory가 사용자를 기억하는 데 집중했다면,
-Context Bridge는 지금 이 질문에 필요한 정보가 무엇인지 판단하고,
-그 사용 여부를 사용자에게 다시 돌려주는 데 집중합니다.
+bootstrap loading
+proposal loading
+generate loading
+memory resolve loading
+empty profile
+empty context
+api error
+retry target
 ```
 
-## 16. 다음 작업 체크리스트
+화면 처리:
 
-- [ ] 공모 제출용 문제 정의 문장 다듬기
-- [ ] 대표 페르소나 3명 확정
-- [ ] MVP 화면 와이어프레임 작성
-- [ ] 샘플 프로필 JSON 작성
-- [ ] 질문 의도 분류 체계 정의
-- [ ] Context Preview 표시 항목 확정
-- [ ] Streamlit 앱 기본 구조 생성
-- [ ] 사용자 원문 입력과 고급 프롬프트 비교 데모 구현
-- [ ] 사용 기록 화면 구현
-- [ ] 발표용 데모 시나리오 정리
+- 질문 전송 중: 입력 버튼 disabled, 로딩 표시
+- 후보 없음: "이번 질문에 사용할 맥락이 없습니다" empty 상태
+- 응답 생성 중: 채팅 메시지 위치에 loading 상태
+- 서버 오류: 상태별 안내 문구와 재시도 버튼
+- mock 서버 미실행: 네트워크 오류로 표시
+- 401: 다시 로그인 안내
+- 400/404: 요청 또는 프로필 상태 확인 안내
 
+중요:
+
+- API 실패 시 기존 프론트 fallback 분석으로 조용히 넘어가지 않는다.
+- 실제 배포 API 실패 시 mock JSON을 import하거나 대체 표시하지 않는다.
+
+## 9. 파일별 작업 순서
+
+1. 브랜치 확인
+
+```bash
+git checkout main
+git checkout -b feature/frontend
+```
+
+2. 계약 파일 반영
+
+```text
+contracts/
+mock-server.mjs
+```
+
+3. 환경변수 예시 정리
+
+```text
+.env.example
+contracts/.env.frontend.example
+```
+
+`VITE_SUPABASE_ANON_KEY`는 사용하지 않고 `VITE_SUPABASE_PUBLISHABLE_KEY`만 남긴다.
+
+4. TypeScript 설정
+
+```text
+tsconfig.app.json
+```
+
+`contracts` 타입을 import할 수 있게 include를 조정한다.
+
+5. API 서비스 추가
+
+```text
+src/services/apiClient.ts
+src/services/contractApi.ts
+src/services/contractMappers.ts
+```
+
+6. App 상태 연결
+
+```text
+src/App.tsx
+```
+
+- demo 계정 -> demo token 매핑
+- bootstrap 호출
+- proposal 생성 호출
+- generate 호출
+- memory candidate 처리
+- 오류/재시도 상태 보관
+
+7. UI props 확장
+
+```text
+src/components/ChatWorkspace.tsx
+src/components/Sidebar.tsx
+src/components/ContextLog.tsx
+```
+
+- loading 상태
+- error/retry 상태
+- disabled confidential checkbox
+- answer/raw answer/memory candidate 표시
+
+8. 문서 업데이트
+
+```text
+README.md
+docs/FRONTEND_HANDOFF.md
+```
+
+- mock server 실행법
+- `VITE_API_BASE_URL=http://localhost:4000`
+- 실제 키 커밋 금지
+- session 1에서 Supabase auth는 제외한다는 범위
+
+## 10. 검증 계획
+
+### 로컬 실행
+
+터미널 1:
+
+```bash
+node mock-server.mjs
+```
+
+터미널 2:
+
+```bash
+npm run dev
+```
+
+### 빌드
+
+```bash
+npm run build
+```
+
+### 수동 확인
+
+- 대학생 demo 계정 선택
+- 고령 사용자 demo 계정 선택
+- 질문 전송
+- 승인 후보 표시
+- suggested 카드 기본 체크
+- excluded 카드 사유 표시
+- confidential/valueVisible false 카드 비활성 처리
+- 승인한 카드 ID만 generate 요청에 포함
+- AI 응답 표시
+- raw answer 비교 표시
+- memory candidate empty 상태
+- mock 서버 중단 후 오류와 재시도 표시
+- `.env.local`, `.vercel`, 실제 key가 git status에 나오지 않는지 확인
+
+## 11. 다음 세션 계획
+
+세션 1이 끝난 뒤에도 프론트 작업은 팀 기준에 맞춰 `feature/frontend`에서 이어간다.
+
+팀 브랜치 구조:
+
+```bash
+main
+  develop
+    feature/frontend
+    feature/backend
+    feature/integration
+```
+
+범위:
+
+- 회원가입
+- 로그인/로그아웃
+- 로그인 상태 유지
+- 사용자 프로필 조회/생성/수정
+- 컨텍스트 카드 조회/생성/수정/삭제
+- 질문 기록 조회
+- `account_profiles`, `context_cards`, `context_proposals`, `approval_snapshots`, `audit_logs`, `memory_candidates` 실제 연동
+
+테스트 계정:
+
+```text
+student-test@example.com / 123
+senior-test@example.com / 1234
+프로필이 없는 신규 사용자
+```
+
+세션 2에서도 `service_role` key와 AI API key는 프론트에 넣지 않는다.
+
+## 12. 완료 기준
+
+세션 1 완료 기준:
+
+- `feature/frontend` 브랜치에서 작업한다.
+- 기존 ChatGPT형 UI가 유지된다.
+- `node mock-server.mjs`로 mock API가 실행된다.
+- `VITE_API_BASE_URL=http://localhost:4000` 기준 API client가 동작한다.
+- ZIP의 `contracts/types.ts` 타입을 import해서 사용한다.
+- 질문 -> proposal -> 승인 -> generate 흐름이 mock API로 연결된다.
+- API 실패 시 mock fallback이 아니라 오류/재시도 UI가 보인다.
+- loading, empty, error 상태가 구현된다.
+- 실제 환경변수와 `.vercel`은 커밋되지 않는다.
+- `npm run build`가 통과한다.

@@ -75,7 +75,7 @@ AI API key를 프론트에 넣지 않기
 권장 브랜치:
 
 ```bash
-git checkout -b feature/frontend-contract-integration
+git checkout -b feature/frontend
 ```
 
 목표:
@@ -106,7 +106,7 @@ src/types.ts
 권장 브랜치:
 
 ```bash
-git checkout -b feature/frontend-supabase-profile
+git checkout feature/frontend
 ```
 
 목표:
@@ -136,7 +136,7 @@ src/components/ProfileManager.tsx
 권장 브랜치:
 
 ```bash
-git checkout -b feature/frontend-chat-polish
+git checkout feature/frontend
 ```
 
 목표:
@@ -198,7 +198,7 @@ npm run build
 ```bash
 git checkout main
 git pull origin main
-git checkout -b feature/작업명
+git checkout -b feature/frontend
 ```
 
 작업 완료:
@@ -208,29 +208,29 @@ npm run build
 git status
 git add 필요한-파일만
 git commit -m "feat: ..."
-git push origin feature/작업명
+git push origin feature/frontend
 ```
 
-팀 기준으로는 `main`에 직접 계속 push하지 말고, 가능하면 feature 브랜치에서 PR로 합칩니다. 단, 현재 baseline과 handoff 문서처럼 팀 공용 기둥을 세우는 작업은 예외적으로 `main`에 반영했습니다.
+팀 기준으로는 `main`에 직접 계속 push하지 말고, `develop` 아래에 `feature/frontend`, `feature/backend`, `feature/integration`으로 나눠 작업한 뒤 통합합니다. 단, 현재 baseline과 handoff 문서처럼 팀 공용 기둥을 세우는 작업은 예외적으로 `main`에 반영했습니다.
 
 ## 새 세션 시작 프롬프트 예시
 
 세션 1:
 
 ```text
-README.md와 docs/FRONTEND_HANDOFF.md를 먼저 읽고, 세션 1: contracts/mock API 연동만 진행해줘. main에서 feature/frontend-contract-integration 브랜치를 만들고, 기존 ChatWorkspace UI는 유지하면서 VITE_API_BASE_URL 기반 API 계층을 붙여줘.
+README.md와 docs/FRONTEND_HANDOFF.md를 먼저 읽고, 세션 1: contracts/mock API 연동만 진행해줘. feature/frontend 브랜치에서 기존 ChatWorkspace UI는 유지하면서 VITE_API_BASE_URL 기반 API 계층을 붙여줘.
 ```
 
 세션 2:
 
 ```text
-README.md와 docs/FRONTEND_HANDOFF.md를 먼저 읽고, 세션 2: Supabase auth/profile 연동만 진행해줘. main에서 feature/frontend-supabase-profile 브랜치를 만들고, VITE_SUPABASE_PUBLISHABLE_KEY 기준으로 프로필 조회/수정 흐름을 연결해줘.
+README.md와 docs/FRONTEND_HANDOFF.md를 먼저 읽고, 세션 2: Supabase auth/profile 연동만 진행해줘. feature/frontend 브랜치에서 VITE_SUPABASE_PUBLISHABLE_KEY 기준으로 프로필 조회/수정 흐름을 연결해줘.
 ```
 
 세션 3:
 
 ```text
-README.md와 docs/FRONTEND_HANDOFF.md를 먼저 읽고, 세션 3: UI/UX polish만 진행해줘. main에서 feature/frontend-chat-polish 브랜치를 만들고, 현재 채팅 중심 UI를 유지한 채 loading/error/retry/mobile/sidebar UX를 다듬어줘.
+README.md와 docs/FRONTEND_HANDOFF.md를 먼저 읽고, 세션 3: UI/UX polish만 진행해줘. feature/frontend 브랜치에서 현재 채팅 중심 UI를 유지한 채 loading/error/retry/mobile/sidebar UX를 다듬어줘.
 ```
 
 ## 검증 기준
