@@ -1,35 +1,62 @@
 import { useEffect, useMemo, useState } from "react";
+import type { AnswerResponse, MemoryCandidate, SelectionMode } from "../contracts/types";
 import { ChatWorkspace } from "./components/ChatWorkspace";
 import { ContextLog } from "./components/ContextLog";
-import { demoAccounts, demoProfiles } from "./data/profiles";
 import { LoginScreen } from "./components/LoginScreen";
 import { ProfileManager } from "./components/ProfileManager";
 import { Sidebar } from "./components/Sidebar";
-import { analyzeContext } from "./services/contextSelector";
-import { detectIntent } from "./services/intentAnalyzer";
-import { loadAccounts, loadProfileForAccount } from "./services/profileRepository";
-import { composeBridgePrompt } from "./services/promptComposer";
+import { demoAccounts, demoProfiles } from "./data/profiles";
+import { createProposal, generateAnswer, getBootstrap, resolveMemory } from "./services/contractApi";
+import {
+  getInitialApprovals,
+  mapAuditLog,
+  mapContractProfile,
+  mapProposalToAnalysis,
+} from "./services/contractMappers";
+import { loadAccounts } from "./services/profileRepository";
 import { getAnalyzedQuality, getGeneratedQuality, getIdleQuality } from "./services/qualityAnalyzer";
-import type { ContextAnalysis, DemoAccount, DetectedIntent, InteractionRecord, SelectedContext, UserProfile } from "./types";
+import type {
+  ContextAnalysis,
+  DemoAccount,
+  DetectedIntent,
+  InteractionRecord,
+  SelectedContext,
+  UserProfile,
+} from "./types";
 
 type QualityMode = "idle" | "analyzed" | "generated";
+type RetryStage = "proposal" | "generate" | null;
 
 export default function App() {
   const [activePage, setActivePage] = useState("main");
   const [accounts, setAccounts] = useState<DemoAccount[]>(demoAccounts);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [apiToken, setApiToken] = useState("");
   const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(null);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [emptyProfile, setEmptyProfile] = useState(false);
+  const [lastLoginAccountId, setLastLoginAccountId] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [question, setQuestion] = useState(demoProfiles[0].defaultQuestion);
   const [intent, setIntent] = useState<DetectedIntent | null>(null);
   const [selected, setSelected] = useState<SelectedContext[]>([]);
   const [sensitive, setSensitive] = useState<SelectedContext[]>([]);
   const [excluded, setExcluded] = useState<SelectedContext[]>([]);
   const [analysisSource, setAnalysisSource] = useState<ContextAnalysis["source"]>();
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>();
+  const [proposalId, setProposalId] = useState("");
   const [approvals, setApprovals] = useState<Record<string, boolean>>({});
-  const [bridgePrompt, setBridgePrompt] = useState("");
+  const [bridgeAnswer, setBridgeAnswer] = useState("");
+  const [answerCompleted, setAnswerCompleted] = useState(false);
+  const [rawAnswer, setRawAnswer] = useState("");
+  const [memoryCandidates, setMemoryCandidates] = useState<MemoryCandidate[]>([]);
+  const [memoryResolvingId, setMemoryResolvingId] = useState("");
+  const [memoryActions, setMemoryActions] = useState<Record<string, "save" | "ignore">>({});
+  const [apiError, setApiError] = useState("");
+  const [retryStage, setRetryStage] = useState<RetryStage>(null);
   const [qualityMode, setQualityMode] = useState<QualityMode>("idle");
   const [records, setRecords] = useState<InteractionRecord[]>([]);
 
@@ -61,20 +88,43 @@ export default function App() {
         : getIdleQuality();
 
   const login = async (accountId: string) => {
-    setLoadingProfile(true);
-    const profile = await loadProfileForAccount(accountId);
     const account = accounts.find((item) => item.id === accountId) || demoAccounts[0];
+    const token = account.personaType === "older_adult" ? "demo-senior" : "demo-student";
 
-    setSelectedAccountId(accountId);
-    setCurrentProfile(profile);
-    setQuestion(profile?.defaultQuestion || (account.personaType === "older_adult" ? "내일 딸이랑 어디 가면 좋아?" : "이번 방학에 뭐 공부해야 해?"));
-    resetAnalysis(profile?.defaultQuestion);
-    setLoadingProfile(false);
+    setLoadingProfile(true);
+    setLoginError("");
+    setEmptyProfile(false);
+    setLastLoginAccountId(accountId);
+
+    try {
+      const bootstrap = await getBootstrap(token);
+      const contractProfile = bootstrap.profiles[0];
+
+      if (!contractProfile) {
+        setEmptyProfile(true);
+        return;
+      }
+
+      const profile = mapContractProfile(contractProfile, account.id);
+      setApiToken(token);
+      setSelectedAccountId(account.id);
+      setCurrentProfile(profile);
+      setRecords(bootstrap.auditLogs.map((log) => mapAuditLog(log, profile.name)));
+      resetAnalysis(profile.defaultQuestion);
+    } catch (error) {
+      setLoginError(getErrorMessage(error));
+    } finally {
+      setLoadingProfile(false);
+    }
   };
 
   const logout = () => {
     setSelectedAccountId(null);
+    setApiToken("");
     setCurrentProfile(null);
+    setLoginError("");
+    setEmptyProfile(false);
+    setLastLoginAccountId(null);
     resetAnalysis(demoProfiles[0].defaultQuestion);
     setActivePage("main");
   };
@@ -85,81 +135,165 @@ export default function App() {
     setSensitive([]);
     setExcluded([]);
     setAnalysisSource(undefined);
+    setSelectionMode(undefined);
+    setProposalId("");
     setApprovals({});
-    setBridgePrompt("");
+    setBridgeAnswer("");
+    setAnswerCompleted(false);
+    setRawAnswer("");
+    setMemoryCandidates([]);
+    setMemoryResolvingId("");
+    setMemoryActions({});
+    setApiError("");
+    setRetryStage(null);
     setQuestion(nextQuestion);
     setQualityMode("idle");
   };
 
   const analyze = async () => {
-    if (!currentProfile || !currentAccount) return;
+    if (!currentProfile || !apiToken) return;
     const normalizedQuestion = question.trim() || currentProfile.defaultQuestion;
+
     setAnalyzing(true);
+    setApiError("");
+    setRetryStage(null);
+    setIntent(null);
+    setSelected([]);
+    setSensitive([]);
+    setExcluded([]);
+    setProposalId("");
+    setApprovals({});
+    setBridgeAnswer("");
+    setAnswerCompleted(false);
+    setRawAnswer("");
+    setMemoryCandidates([]);
 
     try {
-      const response = await fetch("/api/analyze-context", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId: currentAccount.id, question: normalizedQuestion }),
+      const proposal = await createProposal(apiToken, {
+        profileId: currentProfile.id,
+        query: normalizedQuestion,
       });
+      const analysis = mapProposalToAnalysis(proposal);
 
-      if (!response.ok) throw new Error("backend analysis failed");
-      const analysis = (await response.json()) as ContextAnalysis;
-      applyAnalysis(normalizedQuestion, analysis);
-    } catch {
-      const nextIntent = detectIntent(normalizedQuestion);
-      const fallbackAnalysis = analyzeContext(currentProfile, nextIntent, "frontend");
-      applyAnalysis(normalizedQuestion, fallbackAnalysis);
+      setQuestion(normalizedQuestion);
+      setProposalId(proposal.proposalId);
+      setSelectionMode(proposal.selectionMode);
+      setIntent(analysis.intent);
+      setSelected(analysis.selected);
+      setSensitive(analysis.sensitive);
+      setExcluded(analysis.excluded);
+      setAnalysisSource(analysis.source);
+      setApprovals(getInitialApprovals(proposal.evaluations));
+      setQualityMode("analyzed");
+    } catch (error) {
+      setApiError(getErrorMessage(error));
+      setRetryStage("proposal");
     } finally {
       setAnalyzing(false);
     }
   };
 
-  const applyAnalysis = (normalizedQuestion: string, analysis: ContextAnalysis) => {
-    setQuestion(normalizedQuestion);
-    setIntent(analysis.intent);
-    setSelected(analysis.selected);
-    setSensitive(analysis.sensitive);
-    setExcluded(analysis.excluded);
-    setAnalysisSource(analysis.source);
-    setApprovals({
-      ...Object.fromEntries(analysis.selected.map((field) => [field.key, true])),
-      ...Object.fromEntries(analysis.sensitive.map((field) => [field.key, false])),
-    });
-    setBridgePrompt("");
-    setQualityMode("analyzed");
-  };
-
   const toggleApproval = (key: string, value: boolean) => {
+    const field = approvalPool.find((item) => item.key === key);
+    if (field?.valueVisible === false) return;
+
     setApprovals((current) => ({ ...current, [key]: value }));
     if (qualityMode === "generated") {
       setQualityMode("analyzed");
-      setBridgePrompt("");
+      setBridgeAnswer("");
+      setAnswerCompleted(false);
+      setRawAnswer("");
+      setMemoryCandidates([]);
     }
   };
 
-  const generatePrompt = () => {
-    if (!intent || !currentProfile) return;
-    const nextBridgePrompt = composeBridgePrompt(question, intent, approved, rejected);
-    setBridgePrompt(nextBridgePrompt);
+  const generate = async () => {
+    if (!proposalId || !apiToken || !currentProfile || generating) return;
+
+    setGenerating(true);
+    setApiError("");
+    setRetryStage(null);
+
+    try {
+      const answer = await generateAnswer(apiToken, proposalId, {
+        approvedIds: approved.map((field) => field.contextId || field.key),
+        includeRawComparison: true,
+      });
+
+      applyAnswer(answer);
+      setRecords((current) => [mapAuditLog(answer.auditLog, currentProfile.name), ...current]);
+    } catch (error) {
+      setApiError(getErrorMessage(error));
+      setRetryStage("generate");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const applyAnswer = (answer: AnswerResponse) => {
+    setBridgeAnswer(answer.contextBridgeAnswer);
+    setAnswerCompleted(true);
+    setRawAnswer(answer.rawAnswer || "");
+    setMemoryCandidates(answer.memoryCandidates);
+    setMemoryActions({});
     setQualityMode("generated");
-    setRecords((current) => [
-      {
-        profile: currentProfile.name,
-        question,
-        intent: intent.label,
-        selected: approvalPool.map((field) => field.value),
-        approved: approved.map((field) => field.value),
-        rejected: rejected.map((field) => field.value),
-        sensitiveCount,
-        createdAt: new Date().toLocaleString("ko-KR"),
-      },
-      ...current,
-    ]);
+  };
+
+  const resolveMemoryCandidate = async (candidateId: string, action: "save" | "ignore") => {
+    if (!apiToken || memoryResolvingId) return;
+
+    setMemoryResolvingId(candidateId);
+    setApiError("");
+
+    try {
+      const response = await resolveMemory(apiToken, candidateId, { action });
+      setMemoryActions((current) => ({ ...current, [candidateId]: action }));
+
+      if (response.context && currentProfile) {
+        setCurrentProfile({
+          ...currentProfile,
+          fields: [
+            ...currentProfile.fields,
+            {
+              key: response.context.id,
+              contextId: response.context.id,
+              label: response.context.title,
+              value: response.context.content,
+              sensitivity: response.context.privacyLevel === "normal" ? "normal" : "sensitive",
+              enabled: response.context.isActive,
+              tags: response.context.tags,
+              valueVisible: true,
+            },
+          ],
+        });
+      }
+    } catch (error) {
+      setApiError(getErrorMessage(error));
+      setRetryStage(null);
+    } finally {
+      setMemoryResolvingId("");
+    }
+  };
+
+  const retry = () => {
+    if (retryStage === "proposal") {
+      void analyze();
+    } else if (retryStage === "generate") {
+      void generate();
+    }
   };
 
   if (!currentAccount || !currentProfile) {
-    return <LoginScreen accounts={accounts} loading={loadingAccounts || loadingProfile} onLogin={login} />;
+    return (
+      <LoginScreen
+        accounts={accounts}
+        loading={loadingAccounts || loadingProfile}
+        error={loginError}
+        emptyProfile={emptyProfile}
+        onLogin={login}
+        onRetry={lastLoginAccountId ? () => login(lastLoginAccountId) : undefined}
+      />
+    );
   }
 
   return (
@@ -186,18 +320,29 @@ export default function App() {
             profile={currentProfile}
             question={question}
             analyzing={analyzing}
+            generating={generating}
             intent={intent}
             selected={selected}
             sensitive={sensitive}
             excluded={excluded}
             approvals={approvals}
             source={analysisSource}
-            bridgePrompt={bridgePrompt}
+            selectionMode={selectionMode}
+            bridgePrompt={bridgeAnswer}
+            answerCompleted={answerCompleted}
+            rawAnswer={rawAnswer}
             quality={quality}
             uiMode={uiMode}
+            apiError={apiError}
+            canRetry={Boolean(retryStage)}
+            memoryCandidates={memoryCandidates}
+            memoryResolvingId={memoryResolvingId}
+            memoryActions={memoryActions}
             onQuestionChange={setQuestion}
             onAnalyze={analyze}
-            onGenerate={generatePrompt}
+            onGenerate={generate}
+            onRetry={retry}
+            onResolveMemory={resolveMemoryCandidate}
             onReset={() => resetAnalysis()}
           />
         )}
@@ -216,4 +361,8 @@ export default function App() {
       </main>
     </div>
   );
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "요청을 처리하지 못했습니다. 다시 시도해 주세요.";
 }

@@ -16,7 +16,11 @@
 - 메인 화면은 ChatGPT와 유사한 채팅 중심 UI로 개편되어 있습니다.
 - 왼쪽 사이드바에는 프로필, 선택/승인/민감 카운트, 맥락 승인 체크박스가 있습니다.
 - 오른쪽 본문에는 대화 메시지, 질문 입력창, 분석 결과, 생성된 고급 프롬프트가 표시됩니다.
-- 백엔드 `/api/analyze-context` 호출이 실패하면 현재는 프론트 fallback 규칙 엔진으로 분석합니다.
+- ZIP의 `contracts/`와 공통 `types.ts`가 저장소에 반영되어 있습니다.
+- 질문 흐름은 `/api/bootstrap` → `/api/proposals` → `/api/proposals/:proposalId/generate` 계약에 연결되어 있습니다.
+- API 실패 시 프론트 fallback으로 대체하지 않고 오류와 재시도 상태를 표시합니다.
+- `valueVisible: false` 카드는 값을 숨기고 승인 체크박스를 비활성화합니다.
+- 답변 생성 요청에는 승인된 카드 객체나 값이 아니라 `approvedIds`만 보냅니다.
 - Supabase 환경변수가 없으면 로컬 demo data로 동작합니다.
 
 주요 파일:
@@ -27,6 +31,9 @@ src/components/ChatWorkspace.tsx
 src/components/Sidebar.tsx
 src/services/supabaseClient.ts
 src/services/profileRepository.ts
+src/services/apiClient.ts
+src/services/contractApi.ts
+src/services/contractMappers.ts
 src/services/contextSelector.ts
 src/services/intentAnalyzer.ts
 src/services/promptComposer.ts
@@ -72,6 +79,8 @@ AI API key를 프론트에 넣지 않기
 
 ### 세션 1: contracts/mock API 연동
 
+상태: `feature/frontend` 브랜치에서 1차 구현 완료. `npm run build` 통과.
+
 권장 브랜치:
 
 ```bash
@@ -85,6 +94,18 @@ git checkout -b feature/frontend
 - `mock-server.mjs` 실행 기준을 README나 별도 문서에 반영합니다.
 - `VITE_API_BASE_URL=http://localhost:4000` 기준으로 API client를 만듭니다.
 - 질문 전송, AI 응답, 추천 질문, loading, empty, error, retry 상태를 mock API 기준으로 연결합니다.
+
+로컬 확인:
+
+```bash
+# 터미널 1
+node mock-server.mjs
+
+# 터미널 2
+npm run dev
+```
+
+별도 추천 질문 endpoint는 현재 계약에 없으므로 기존 프로필 예시 질문을 유지합니다.
 
 주의:
 

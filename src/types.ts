@@ -18,6 +18,8 @@ export type ProfileField = {
   sensitivity: Sensitivity;
   enabled: boolean;
   tags: string[];
+  contextId?: string;
+  valueVisible?: boolean;
 };
 
 export type UserProfile = {
@@ -47,6 +49,9 @@ export type DetectedIntent = IntentRule & {
 
 export type SelectedContext = ProfileField & {
   reason: string;
+  relevanceScore?: number;
+  isStale?: boolean;
+  exclusionReason?: "UNRELATED" | "DISABLED" | "RESTRICTED";
 };
 
 export type ContextAnalysis = {

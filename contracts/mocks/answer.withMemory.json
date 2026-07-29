@@ -1,0 +1,260 @@
+{
+  "contextBridgeAnswer": "일반 답변(오프라인 데모): “무릎이 안 좋아서 오래 못 걸어요. 가까운 곳 추천해줘\n\n승인된 개인 맥락이 없습니다. 일반적인 답변을 제공하세요.”에 대한 기본 안내입니다.",
+  "usedContexts": [],
+  "usedContextsCount": 0,
+  "snapshotHash": "f824bba54c85dfe6d9ed920d80a395720038505629d9a1a7a5a1ece385a0b7a2",
+  "memoryCandidates": [
+    {
+      "id": "e96c9fce-6a0b-43f5-88c0-5744f96e982c",
+      "label": "이동 접근성",
+      "category": "constraint",
+      "content": "오래 걷기 어려움",
+      "privacyLevel": "sensitive",
+      "status": "PENDING"
+    }
+  ],
+  "auditLog": {
+    "id": "demo-student:649019fb-22e1-43d8-9e2f-73ea03ba96d1",
+    "timestamp": "2026-07-29T04:15:32.879Z",
+    "userQuery": "무릎이 안 좋아서 오래 못 걸어요. 가까운 곳 추천해줘",
+    "evaluations": [
+      {
+        "contextId": "8470536a-6314-4bc4-a8e4-ebc030e320a2",
+        "context": {
+          "id": "8470536a-6314-4bc4-a8e4-ebc030e320a2",
+          "title": "전공",
+          "category": "profile",
+          "content": "AI·SW학과",
+          "tags": [
+            "교육",
+            "전공"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        "relevanceScore": 20,
+        "reason": "질문과 직접 관련된 태그를 찾지 못했습니다.",
+        "suggested": false,
+        "approvedByUser": false,
+        "isStale": false,
+        "exclusionReason": "UNRELATED",
+        "valueVisible": true
+      },
+      {
+        "contextId": "0152be4a-6516-4a10-a40e-4768da0d2477",
+        "context": {
+          "id": "0152be4a-6516-4a10-a40e-4768da0d2477",
+          "title": "학년",
+          "category": "profile",
+          "content": "3학년",
+          "tags": [
+            "교육",
+            "학년"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        "relevanceScore": 20,
+        "reason": "질문과 직접 관련된 태그를 찾지 못했습니다.",
+        "suggested": false,
+        "approvedByUser": false,
+        "isStale": false,
+        "exclusionReason": "UNRELATED",
+        "valueVisible": true
+      },
+      {
+        "contextId": "082c157b-f062-4292-84ec-6476c95e1559",
+        "context": {
+          "id": "082c157b-f062-4292-84ec-6476c95e1559",
+          "title": "진로 목표",
+          "category": "goal",
+          "content": "공기업 전산직",
+          "tags": [
+            "취업",
+            "직무"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        "relevanceScore": 20,
+        "reason": "질문과 직접 관련된 태그를 찾지 못했습니다.",
+        "suggested": false,
+        "approvedByUser": false,
+        "isStale": false,
+        "exclusionReason": "UNRELATED",
+        "valueVisible": true
+      },
+      {
+        "contextId": "8d498b4e-f472-4782-a718-d294cd343b3e",
+        "context": {
+          "id": "8d498b4e-f472-4782-a718-d294cd343b3e",
+          "title": "자격증 목표",
+          "category": "goal",
+          "content": "SQLD, 정보처리기사",
+          "tags": [
+            "자격증",
+            "공부"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        "relevanceScore": 20,
+        "reason": "질문과 직접 관련된 태그를 찾지 못했습니다.",
+        "suggested": false,
+        "approvedByUser": false,
+        "isStale": false,
+        "exclusionReason": "UNRELATED",
+        "valueVisible": true
+      },
+      {
+        "contextId": "ee9d76de-ded4-4e77-97fa-0f027bc44dc6",
+        "context": {
+          "id": "ee9d76de-ded4-4e77-97fa-0f027bc44dc6",
+          "title": "현재 기술",
+          "category": "profile",
+          "content": "Python, React, Supabase",
+          "tags": [
+            "개발",
+            "기술"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        "relevanceScore": 20,
+        "reason": "질문과 직접 관련된 태그를 찾지 못했습니다.",
+        "suggested": false,
+        "approvedByUser": false,
+        "isStale": false,
+        "exclusionReason": "UNRELATED",
+        "valueVisible": true
+      },
+      {
+        "contextId": "e4605104-b233-4977-a60d-b15532a64b4d",
+        "context": {
+          "id": "e4605104-b233-4977-a60d-b15532a64b4d",
+          "title": "공부 가능 시간",
+          "category": "constraint",
+          "content": "평일 1시간",
+          "tags": [
+            "시간",
+            "공부"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        "relevanceScore": 20,
+        "reason": "질문과 직접 관련된 태그를 찾지 못했습니다.",
+        "suggested": false,
+        "approvedByUser": false,
+        "isStale": false,
+        "exclusionReason": "UNRELATED",
+        "valueVisible": true
+      },
+      {
+        "contextId": "b68466e1-46f1-4a3f-9421-fe79f1c90f3f",
+        "context": {
+          "id": "b68466e1-46f1-4a3f-9421-fe79f1c90f3f",
+          "title": "이동 수단",
+          "category": "constraint",
+          "content": "대중교통",
+          "tags": [
+            "이동",
+            "외출"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        "relevanceScore": 20,
+        "reason": "질문과 직접 관련된 태그를 찾지 못했습니다.",
+        "suggested": false,
+        "approvedByUser": false,
+        "isStale": false,
+        "exclusionReason": "UNRELATED",
+        "valueVisible": true
+      },
+      {
+        "contextId": "191e46a3-5888-43fa-be1c-bc45ce583fcc",
+        "context": {
+          "id": "191e46a3-5888-43fa-be1c-bc45ce583fcc",
+          "title": "예산",
+          "category": "constraint",
+          "content": "대학생 수준",
+          "tags": [
+            "예산",
+            "외출"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        "relevanceScore": 20,
+        "reason": "질문과 직접 관련된 태그를 찾지 못했습니다.",
+        "suggested": false,
+        "approvedByUser": false,
+        "isStale": false,
+        "exclusionReason": "UNRELATED",
+        "valueVisible": true
+      },
+      {
+        "contextId": "6df1c136-f958-48ce-9dba-80319d08cc8c",
+        "context": {
+          "id": "6df1c136-f958-48ce-9dba-80319d08cc8c",
+          "title": "장소 선호",
+          "category": "preference",
+          "content": "조용한 장소, 사진 찍기 좋은 공간",
+          "tags": [
+            "장소",
+            "외출"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        "relevanceScore": 20,
+        "reason": "질문과 직접 관련된 태그를 찾지 못했습니다.",
+        "suggested": false,
+        "approvedByUser": false,
+        "isStale": false,
+        "exclusionReason": "UNRELATED",
+        "valueVisible": true
+      },
+      {
+        "contextId": "2cc5755e-2c63-4135-8eed-95f529050c2a",
+        "context": {
+          "id": "2cc5755e-2c63-4135-8eed-95f529050c2a",
+          "title": "답변 방식",
+          "category": "preference",
+          "content": "구체적이고 단계적인 설명",
+          "tags": [
+            "답변",
+            "설명"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        "relevanceScore": 20,
+        "reason": "질문과 직접 관련된 태그를 찾지 못했습니다.",
+        "suggested": false,
+        "approvedByUser": false,
+        "isStale": false,
+        "exclusionReason": "UNRELATED",
+        "valueVisible": true
+      }
+    ],
+    "contextBridgeAnswer": "일반 답변(오프라인 데모): “무릎이 안 좋아서 오래 못 걸어요. 가까운 곳 추천해줘\n\n승인된 개인 맥락이 없습니다. 일반적인 답변을 제공하세요.”에 대한 기본 안내입니다.",
+    "totalVaultCount": 10,
+    "usedContextCount": 0,
+    "privacySavedCount": 10,
+    "snapshotHash": "f824bba54c85dfe6d9ed920d80a395720038505629d9a1a7a5a1ece385a0b7a2",
+    "profileId": "student-profile",
+    "usedContexts": []
+  }
+}

@@ -41,9 +41,9 @@ export function getGeneratedQuality(question: string, approved: SelectedContext[
     ],
     after: [
       hasApproved
-        ? `${approved.length}개의 승인된 맥락만 프롬프트에 반영했습니다.`
-        : "승인된 맥락 없이 일반 안내용 프롬프트로 제한했습니다.",
-      "원래 질문을 보존하면서 목적, 조건, 제약, 출력 형식을 추가했습니다.",
+        ? `${approved.length}개의 승인된 맥락만 개인화 답변에 반영했습니다.`
+        : "승인된 맥락 없이 일반 답변으로 제한했습니다.",
+      "원래 질문을 보존하면서 필요한 목적, 조건, 제약을 함께 전달했습니다.",
       hasSensitive
         ? "민감 정보는 사용자가 직접 체크한 항목만 포함했습니다."
         : "민감 정보는 포함하지 않았습니다.",

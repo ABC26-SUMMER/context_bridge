@@ -110,7 +110,7 @@ export function Sidebar({
               <span className="text-xs font-bold text-[#f8d7ad]">{intent ? intent.label : "대기"}</span>
             </div>
             <p className="mt-2 text-xs leading-5 text-white/55">
-              {intent ? "체크한 정보만 프롬프트에 들어갑니다." : "질문을 보내면 필요한 정보가 여기에 표시됩니다."}
+              {intent ? "체크한 정보만 답변 생성에 사용됩니다." : "질문을 보내면 필요한 정보가 여기에 표시됩니다."}
             </p>
 
             <div className="mt-4 grid gap-2">
@@ -120,11 +120,15 @@ export function Sidebar({
                 approvalItems.map((field) => {
                   const checked = approvals[field.key] ?? false;
                   const sensitiveField = field.sensitivity === "sensitive";
+                  const disabled = field.valueVisible === false;
 
                   return (
                     <label
                       key={field.key}
                       className={`grid grid-cols-[22px_minmax(0,1fr)] gap-2 border p-3 transition ${
+                        disabled
+                          ? "cursor-not-allowed border-white/10 bg-black/10 text-white/40"
+                          :
                         checked
                           ? "border-[#79b8ac] bg-white/12 text-white"
                           : "border-white/15 bg-black/5 text-white/60"
@@ -134,6 +138,7 @@ export function Sidebar({
                         className="mt-1 h-4 w-4 accent-[#f8d7ad]"
                         type="checkbox"
                         checked={checked}
+                        disabled={disabled}
                         onChange={(event) => onToggleApproval?.(field.key, event.target.checked)}
                       />
                       <span className="min-w-0">
@@ -141,7 +146,9 @@ export function Sidebar({
                           {sensitiveField ? <ShieldAlert size={14} /> : <Check size={14} />}
                           {field.label}
                         </span>
-                        <span className="mt-1 block text-xs leading-5 text-white/55">{field.value}</span>
+                        <span className="mt-1 block text-xs leading-5 text-white/55">
+                          {disabled ? "기밀 정보는 답변에 사용할 수 없습니다." : field.value}
+                        </span>
                       </span>
                     </label>
                   );

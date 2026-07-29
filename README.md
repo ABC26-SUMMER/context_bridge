@@ -17,7 +17,7 @@ Context Bridge는 사용자의 정보·취향·목표·제약조건을 개인 �
 
 ## 환경변수
 
-프로젝트 루트에 `.env.local`을 만들고 아래 값을 넣으면 공용 Supabase 프로필과 API 서버를 사용할 수 있습니다. 값이 없으면 로컬 데모 데이터로 동작합니다. 실제 값이 들어간 `.env.local`은 GitHub에 올리지 않습니다.
+프로젝트 루트에 `.env.local`을 만들고 아래 값을 넣습니다. 개발 환경에서는 전달받은 Mock API 주소를 사용하고, 배포 환경에서는 실제 API 주소를 설정합니다. 실제 값이 들어간 `.env.local`은 GitHub에 올리지 않습니다.
 
 ```env
 VITE_SUPABASE_URL=
@@ -29,12 +29,24 @@ AI API 키와 Supabase `service_role` 키는 프론트엔드에 넣지 않고 �
 
 테이블과 데모 데이터는 `supabase_schema.sql`을 기준으로 만들 수 있습니다. 이 SQL은 `demo_accounts`와 `profiles`를 만들고, `profiles.account_id`로 계정과 프로필을 연결합니다.
 
-## 실행
+## Mock API와 프론트 실행
+
+터미널 1:
+
+```bash
+node mock-server.mjs
+```
+
+터미널 2:
 
 ```bash
 npm install
 npm run dev
 ```
+
+데모 계정은 Mock API 계약의 `demo-student`, `demo-senior` 토큰으로 `/api/bootstrap`을 호출합니다. 질문 전송은 `/api/proposals`, 사용자 승인 후 답변 생성은 `/api/proposals/:proposalId/generate`를 사용합니다.
+
+실제 API 호출에 실패하면 Mock 데이터나 프론트 규칙으로 자동 대체하지 않고 오류와 재시도 화면을 표시합니다.
 
 ## 작업 인수인계
 
