@@ -15,17 +15,17 @@ Context Bridge는 계정별 사용자 정보를 데이터베이스에 저장하�
 - 전이현: 대학생, 공기업 전산직 준비
 - 김영자: 고령 사용자, 큰 글씨와 쉬운 설명 선호
 
-## Supabase 연결
+## 환경변수
 
-`.env`에 아래 값을 넣으면 DB 프로필을 조회합니다. 값이 없으면 로컬 데모 데이터로 동작합니다.
+프로젝트 루트에 `.env.local`을 만들고 아래 값을 넣으면 공용 Supabase 프로필과 API 서버를 사용할 수 있습니다. 값이 없으면 로컬 데모 데이터로 동작합니다. 실제 값이 들어간 `.env.local`은 GitHub에 올리지 않습니다.
 
 ```env
 VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+VITE_API_BASE_URL=http://localhost:4000
 ```
+
+AI API 키와 Supabase `service_role` 키는 프론트엔드에 넣지 않고 백엔드 API에서만 사용합니다.
 
 테이블과 데모 데이터는 `supabase_schema.sql`을 기준으로 만들 수 있습니다. 이 SQL은 `demo_accounts`와 `profiles`를 만들고, `profiles.account_id`로 계정과 프로필을 연결합니다.
 
