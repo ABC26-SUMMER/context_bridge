@@ -36,4 +36,8 @@ npm install
 npm run dev
 ```
 
+## 작업 인수인계
+
+새 Codex 세션에서 이어 작업할 때는 `docs/FRONTEND_HANDOFF.md`를 먼저 읽고 세션별 작업 범위를 나눠서 진행합니다.
+
 초기 단일 파일 스케치는 `prototype.html`에 보존되어 있습니다.
