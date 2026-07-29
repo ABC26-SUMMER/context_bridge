@@ -1,19 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { demoAccounts, demoProfiles } from "./data/profiles";
-import { BridgeFlow } from "./components/BridgeFlow";
+import { ChatWorkspace } from "./components/ChatWorkspace";
 import { ContextLog } from "./components/ContextLog";
-import { ContextPreview } from "./components/ContextPreview";
-import { Header } from "./components/Header";
+import { demoAccounts, demoProfiles } from "./data/profiles";
 import { LoginScreen } from "./components/LoginScreen";
 import { ProfileManager } from "./components/ProfileManager";
-import { PromptComparison } from "./components/PromptComparison";
-import { PromptQualityPanel } from "./components/PromptQualityPanel";
-import { QuestionPanel } from "./components/QuestionPanel";
 import { Sidebar } from "./components/Sidebar";
 import { analyzeContext } from "./services/contextSelector";
 import { detectIntent } from "./services/intentAnalyzer";
 import { loadAccounts, loadProfileForAccount } from "./services/profileRepository";
-import { composeBridgePrompt, getPlainInput } from "./services/promptComposer";
+import { composeBridgePrompt } from "./services/promptComposer";
 import { getAnalyzedQuality, getGeneratedQuality, getIdleQuality } from "./services/qualityAnalyzer";
 import type { ContextAnalysis, DemoAccount, DetectedIntent, InteractionRecord, SelectedContext, UserProfile } from "./types";
 
@@ -34,7 +29,6 @@ export default function App() {
   const [excluded, setExcluded] = useState<SelectedContext[]>([]);
   const [analysisSource, setAnalysisSource] = useState<ContextAnalysis["source"]>();
   const [approvals, setApprovals] = useState<Record<string, boolean>>({});
-  const [plainInput, setPlainInput] = useState("");
   const [bridgePrompt, setBridgePrompt] = useState("");
   const [qualityMode, setQualityMode] = useState<QualityMode>("idle");
   const [records, setRecords] = useState<InteractionRecord[]>([]);
@@ -92,7 +86,6 @@ export default function App() {
     setExcluded([]);
     setAnalysisSource(undefined);
     setApprovals({});
-    setPlainInput("");
     setBridgePrompt("");
     setQuestion(nextQuestion);
     setQualityMode("idle");
@@ -133,7 +126,6 @@ export default function App() {
       ...Object.fromEntries(analysis.selected.map((field) => [field.key, true])),
       ...Object.fromEntries(analysis.sensitive.map((field) => [field.key, false])),
     });
-    setPlainInput("");
     setBridgePrompt("");
     setQualityMode("analyzed");
   };
@@ -148,9 +140,7 @@ export default function App() {
 
   const generatePrompt = () => {
     if (!intent || !currentProfile) return;
-    const nextPlainInput = getPlainInput(question);
     const nextBridgePrompt = composeBridgePrompt(question, intent, approved, rejected);
-    setPlainInput(nextPlainInput);
     setBridgePrompt(nextBridgePrompt);
     setQualityMode("generated");
     setRecords((current) => [
@@ -173,47 +163,56 @@ export default function App() {
   }
 
   return (
-    <div className="grid min-h-screen grid-cols-[280px_minmax(0,1fr)] max-lg:grid-cols-1">
-      <Sidebar activePage={activePage} onPageChange={setActivePage} />
-      <main className={`p-7 max-sm:p-4 ${easy ? "text-lg" : ""}`}>
+    <div className="grid min-h-screen grid-cols-[300px_minmax(0,1fr)] bg-surface max-lg:grid-cols-1">
+      <Sidebar
+        activePage={activePage}
+        onPageChange={setActivePage}
+        account={currentAccount}
+        profile={currentProfile}
+        selectedCount={selectedCount}
+        approvedCount={approvedCount}
+        sensitiveCount={sensitiveCount}
+        intent={intent}
+        selected={selected}
+        sensitive={sensitive}
+        approvals={approvals}
+        onToggleApproval={toggleApproval}
+        onLogout={logout}
+      />
+      <main className={`${easy ? "text-lg" : ""}`}>
         {activePage === "main" && (
-          <section className="mx-auto max-w-6xl">
-            <Header selectedCount={selectedCount} approvedCount={approvedCount} sensitiveCount={sensitiveCount} uiMode={uiMode} />
-            <div className="grid grid-cols-[0.95fr_1.25fr] items-start gap-5 max-lg:grid-cols-1">
-              <QuestionPanel
-                account={currentAccount}
-                profile={currentProfile}
-                question={question}
-                analyzing={analyzing}
-                uiMode={uiMode}
-                onQuestionChange={setQuestion}
-                onAnalyze={analyze}
-                onReset={() => resetAnalysis()}
-                onLogout={logout}
-              />
-              <ContextPreview
-                intent={intent}
-                selected={selected}
-                sensitive={sensitive}
-                excluded={excluded}
-                approvals={approvals}
-                source={analysisSource}
-                uiMode={uiMode}
-                onToggle={toggleApproval}
-                onGenerate={generatePrompt}
-              />
-            </div>
-            <BridgeFlow />
-            <PromptComparison plainInput={plainInput} bridgePrompt={bridgePrompt} easy={easy} />
-            <PromptQualityPanel quality={quality} prompt={bridgePrompt} uiMode={uiMode} />
-          </section>
+          <ChatWorkspace
+            account={currentAccount}
+            profile={currentProfile}
+            question={question}
+            analyzing={analyzing}
+            intent={intent}
+            selected={selected}
+            sensitive={sensitive}
+            excluded={excluded}
+            approvals={approvals}
+            source={analysisSource}
+            bridgePrompt={bridgePrompt}
+            quality={quality}
+            uiMode={uiMode}
+            onQuestionChange={setQuestion}
+            onAnalyze={analyze}
+            onGenerate={generatePrompt}
+            onReset={() => resetAnalysis()}
+          />
         )}
 
         {activePage === "profile" && (
-          <ProfileManager profiles={[currentProfile]} profileId={currentProfile.id} onProfileChange={() => undefined} />
+          <div className="p-7 max-sm:p-4">
+            <ProfileManager profiles={[currentProfile]} profileId={currentProfile.id} onProfileChange={() => undefined} />
+          </div>
         )}
 
-        {activePage === "history" && <ContextLog records={records} />}
+        {activePage === "history" && (
+          <div className="p-7 max-sm:p-4">
+            <ContextLog records={records} />
+          </div>
+        )}
       </main>
     </div>
   );
