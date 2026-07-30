@@ -1,0 +1,40 @@
+{
+  "candidate": {
+    "id": "e96c9fce-6a0b-43f5-88c0-5744f96e982c",
+    "label": "이동 접근성",
+    "category": "constraint",
+    "content": "오래 걷기 어려움",
+    "privacyLevel": "sensitive",
+    "status": "SAVED",
+    "userId": "demo-student",
+    "profileId": "student-profile",
+    "blueprint": {
+      "label": "이동 접근성",
+      "title": "이동 접근성",
+      "category": "constraint",
+      "content": "오래 걷기 어려움",
+      "privacyLevel": "sensitive",
+      "tags": [
+        "이동",
+        "접근성",
+        "외출"
+      ],
+      "semanticGroup": "이동"
+    }
+  },
+  "context": {
+    "id": "ctx-29e730cf-b667-48e0-aa03-209c8d75b7d8",
+    "title": "이동 접근성",
+    "category": "constraint",
+    "content": "오래 걷기 어려움",
+    "tags": [
+      "이동",
+      "접근성",
+      "외출"
+    ],
+    "isActive": true,
+    "privacyLevel": "sensitive",
+    "updatedAt": "2026-07-29T04:15:32.883Z"
+  },
+  "profileId": "student-profile"
+}

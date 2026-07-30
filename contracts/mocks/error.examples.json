@@ -1,0 +1,44 @@
+{
+  "_note": "왼쪽은 현재 v12 실제 응답(그대로 mock). 오른쪽 recommended는 통합 시 권장 형식.",
+  "current_v12": {
+    "noAuth_401": {
+      "error": "로그인이 필요합니다."
+    },
+    "wrongProfile_404": {
+      "error": "이 계정의 프로필을 찾을 수 없습니다."
+    },
+    "badMemoryAction_400": {
+      "error": "save 또는 ignore가 필요합니다."
+    }
+  },
+  "recommended_v1": {
+    "AUTH_REQUIRED": {
+      "error": {
+        "code": "AUTH_REQUIRED",
+        "message": "로그인이 필요합니다.",
+        "retryable": false
+      }
+    },
+    "PROFILE_NOT_FOUND": {
+      "error": {
+        "code": "PROFILE_NOT_FOUND",
+        "message": "이 계정의 프로필을 찾을 수 없습니다.",
+        "retryable": false
+      }
+    },
+    "PROPOSAL_ALREADY_PROCESSED": {
+      "error": {
+        "code": "PROPOSAL_ALREADY_PROCESSED",
+        "message": "이미 처리된 질문입니다.",
+        "retryable": false
+      }
+    },
+    "LLM_UNAVAILABLE": {
+      "error": {
+        "code": "LLM_UNAVAILABLE",
+        "message": "답변 생성에 실패했습니다.",
+        "retryable": true
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "name": "context-bridge",
+  "version": "20.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx server.ts",
+    "build": "tsc -b && vite build",
+    "start": "node --import tsx server.ts",
+    "lint": "tsc -b && tsc -p tsconfig.backend.json",
+    "test": "vitest run",
+    "dev:frontend": "vite --host 127.0.0.1",
+    "dev:mock": "node mock-server.mjs",
+    "env:check": "node --import tsx scripts/check-env.ts",
+    "selection:eval": "node --import tsx backend/server/selection.eval.ts",
+    "selection:pipeline:eval": "node --import tsx backend/server/selection.pipeline.eval.ts",
+    "verify": "npm run env:check && npm run lint && npm test && npm run build"
+  },
+  "dependencies": {
+    "@google/genai": "2.13.0",
+    "@supabase/supabase-js": "^2.110.9",
+    "@vitejs/plugin-react": "^4.3.4",
+    "clsx": "^2.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "framer-motion": "^12.4.7",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^3.0.1",
+    "vite": "^6.0.7"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.20.1",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@types/supertest": "^7.2.1",
+    "@vercel/node": "^5.9.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "supertest": "^7.2.2",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3",
+    "vite": "^6.1.0",
+    "vitest": "^4.1.10"
+  }
+}
