@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { MemoryCandidate, SelectionMode } from "../../contracts/types";
 import type { QualityState } from "../services/qualityAnalyzer";
+import { mergeSpeechSegments } from "../services/speechTranscript";
 import type { DemoAccount, DetectedIntent, SelectedContext, UiMode, UserProfile } from "../types";
 import { Pill } from "./Pill";
 
@@ -87,6 +88,9 @@ export function ChatWorkspace({
   const canGenerate = Boolean(intent && approvedCount > 0 && !generating);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const keepListeningRef = useRef(false);
+  const committedTranscriptRef = useRef("");
+  const recognitionRestartTimerRef = useRef<number | null>(null);
   const spokenTextRef = useRef(bridgePrompt);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -101,7 +105,15 @@ export function ChatWorkspace({
 
   useEffect(
     () => () => {
-      recognitionRef.current?.stop();
+      keepListeningRef.current = false;
+      if (recognitionRestartTimerRef.current !== null) {
+        window.clearTimeout(recognitionRestartTimerRef.current);
+      }
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        recognitionRef.current = null;
+      }
       window.speechSynthesis?.cancel();
     },
     [],
@@ -126,7 +138,19 @@ export function ChatWorkspace({
 
   const toggleVoiceInput = () => {
     if (listening) {
-      recognitionRef.current?.stop();
+      keepListeningRef.current = false;
+      if (recognitionRestartTimerRef.current !== null) {
+        window.clearTimeout(recognitionRestartTimerRef.current);
+        recognitionRestartTimerRef.current = null;
+      }
+      const activeRecognition = recognitionRef.current;
+      recognitionRef.current = null;
+      setListening(false);
+      try {
+        activeRecognition?.stop();
+      } catch {
+        setSpeechError("");
+      }
       return;
     }
 
@@ -138,27 +162,56 @@ export function ChatWorkspace({
 
     const recognition = new Recognition();
     recognitionRef.current = recognition;
+    keepListeningRef.current = true;
+    committedTranscriptRef.current = "";
+    onQuestionChange("");
     recognition.lang = "ko-KR";
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.onstart = () => {
       setSpeechError("");
       setListening(true);
     };
     recognition.onresult = (event) => {
-      const transcript = Array.from({ length: event.results.length }, (_, index) => event.results[index][0].transcript)
-        .join(" ")
-        .trim();
-      if (transcript) onQuestionChange(transcript);
+      const segments = Array.from(
+        { length: event.results.length - event.resultIndex },
+        (_, offset) => {
+          const result = event.results[event.resultIndex + offset];
+          return {
+            transcript: result[0].transcript,
+            isFinal: result.isFinal,
+          };
+        },
+      );
+      const merged = mergeSpeechSegments(committedTranscriptRef.current, segments);
+      committedTranscriptRef.current = merged.committed;
+      onQuestionChange(merged.display);
     };
     recognition.onerror = (event) => {
+      if (event.error === "no-speech" || event.error === "aborted") return;
+      keepListeningRef.current = false;
       setSpeechError(
         event.error === "not-allowed"
           ? "마이크 권한이 필요합니다. 브라우저 설정에서 마이크를 허용해 주세요."
-          : "음성을 인식하지 못했습니다. 다시 눌러 천천히 말씀해 주세요.",
+          : "음성 입력이 중단됐습니다. 마이크 버튼을 눌러 다시 시작해 주세요.",
       );
     };
     recognition.onend = () => {
+      if (keepListeningRef.current) {
+        recognitionRestartTimerRef.current = window.setTimeout(() => {
+          recognitionRestartTimerRef.current = null;
+          if (!keepListeningRef.current) return;
+          try {
+            recognition.start();
+          } catch {
+            keepListeningRef.current = false;
+            recognitionRef.current = null;
+            setListening(false);
+            setSpeechError("음성 입력을 다시 시작하지 못했습니다. 마이크 버튼을 눌러 주세요.");
+          }
+        }, 150);
+        return;
+      }
       recognitionRef.current = null;
       setListening(false);
     };
@@ -461,14 +514,14 @@ export function ChatWorkspace({
                     : "border-line bg-zinc-100 text-ink hover:border-bridge"
                 }`}
                 type="button"
-                aria-label={listening ? "음성 입력 중지" : "음성으로 질문하기"}
+                aria-label={listening ? "음성 입력 종료" : "음성 입력 시작"}
                 aria-pressed={listening}
                 disabled={!speechRecognitionSupported || analyzing || generating}
                 title={
                   speechRecognitionSupported
                     ? listening
-                      ? "음성 입력 중지"
-                      : "마이크로 질문 입력"
+                      ? "음성 입력 종료"
+                      : "음성 입력 시작"
                     : "이 브라우저에서는 음성 입력을 지원하지 않습니다"
                 }
                 onClick={toggleVoiceInput}
@@ -515,7 +568,7 @@ export function ChatWorkspace({
               className={`text-center text-sm font-bold ${speechError ? "text-red-800" : "text-bridge-dark"}`}
               role={speechError ? "alert" : "status"}
             >
-              {speechError || "듣고 있습니다. 질문을 천천히 말씀해 주세요."}
+              {speechError || "계속 듣고 있습니다. 모두 말씀한 뒤 마이크 버튼을 다시 눌러 종료해 주세요."}
             </p>
           )}
 
@@ -530,9 +583,11 @@ export function ChatWorkspace({
 
 type SpeechRecognitionResultLike = {
   [index: number]: { transcript: string };
+  isFinal: boolean;
 };
 
 type SpeechRecognitionEventLike = {
+  resultIndex: number;
   results: {
     length: number;
     [index: number]: SpeechRecognitionResultLike;
