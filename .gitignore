@@ -9,3 +9,5 @@ context_bridge_*.png
 .env.*.local
 
 .vercel/
+
+.vercel
