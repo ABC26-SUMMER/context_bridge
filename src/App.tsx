@@ -116,6 +116,8 @@ export default function App() {
   useEffect(() => {
     if (!session) return;
     void refreshUserData();
+    // Session identity is the only trigger; mutations refresh data explicitly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user.id]);
 
   const currentProfile = useMemo(
@@ -139,7 +141,6 @@ export default function App() {
 
   const approvalPool = [...selected, ...sensitive];
   const approved = approvalPool.filter((field) => approvals[field.key]);
-  const rejected = approvalPool.filter((field) => !approvals[field.key]);
   const selectedCount = approvalPool.length;
   const approvedCount = approved.length;
   const sensitiveCount = sensitive.length;
@@ -463,7 +464,12 @@ export default function App() {
   }
 
   return (
-    <div className="grid min-h-screen grid-cols-[300px_minmax(0,1fr)] bg-surface max-lg:grid-cols-1">
+    <div
+      className={`grid min-h-screen bg-surface max-lg:grid-cols-1 ${
+        easy ? "grid-cols-[340px_minmax(0,1fr)]" : "grid-cols-[300px_minmax(0,1fr)]"
+      }`}
+      data-ui-mode={uiMode}
+    >
       <Sidebar
         activePage={activePage}
         onPageChange={setActivePage}

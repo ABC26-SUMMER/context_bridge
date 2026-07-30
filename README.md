@@ -10,6 +10,8 @@ Context Bridge는 사용자의 정보, 선호, 목표, 제약 조건을 프로�
 - 질문 기록 조회
 - 기존 ChatGPT형 채팅 UI와 Mock AI 질문, 맥락 제안, 답변 생성 연결
 - 로딩, 빈 데이터, 오류, 재시도 상태
+- 모바일 접이식 탐색과 고령층 쉬운 모드
+- 브라우저 음성 인식을 이용한 질문 입력과 생성 답변 읽어주기
 - 실제 API 실패 시 Mock 데이터로 자동 대체하지 않음
 
 인증, 프로필, 컨텍스트 카드는 팀 공용 Supabase에 연결합니다. AI 관련 기능은 실제 백엔드가 완성될 때까지 전달받은 `contracts/`와 `mock-server.mjs`를 사용합니다.
@@ -46,6 +48,8 @@ npm run dev
 ## 검증
 
 ```bash
+npm run lint
+npm test
 npm run build
 ```
 

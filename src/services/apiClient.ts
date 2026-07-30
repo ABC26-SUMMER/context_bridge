@@ -19,10 +19,10 @@ type ApiRequestOptions = Omit<RequestInit, "body"> & {
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions): Promise<T> {
   const url = `${configuredBaseUrl}/api${path.startsWith("/") ? path : `/${path}`}`;
-  const { body, token: _token, ...requestOptions } = options;
+  const { body, token, ...requestOptions } = options;
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
-  headers.set("Authorization", `Bearer ${options.token}`);
+  headers.set("Authorization", `Bearer ${token}`);
 
   if (body !== undefined) {
     headers.set("Content-Type", "application/json");

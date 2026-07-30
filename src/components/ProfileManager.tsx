@@ -128,7 +128,11 @@ export function ProfileManager({
         </button>
       </div>
 
-      {error && <div className="mb-4 border border-red-200 bg-red-50 p-4 text-sm text-red-900">{error}</div>}
+      {error && (
+        <div className="mb-4 border border-red-200 bg-red-50 p-4 text-sm text-red-900" role="alert">
+          {error}
+        </div>
+      )}
 
       <div className="border border-line bg-white">
         <div className="flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">

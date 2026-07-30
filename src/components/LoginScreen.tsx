@@ -39,10 +39,12 @@ export function LoginScreen({ loading, error, notice, onSignIn, onSignUp }: Logi
         </div>
 
         <div className="border border-line bg-white p-6 shadow-[0_20px_55px_rgba(18,40,36,0.08)] max-sm:p-5">
-          <div className="grid grid-cols-2 border border-line bg-[#f3f2ed] p-1">
+          <div className="grid grid-cols-2 border border-line bg-[#f3f2ed] p-1" role="tablist" aria-label="인증 방식">
             <button
               className={`min-h-10 text-sm font-black transition ${mode === "signin" ? "bg-white text-ink shadow-sm" : "text-muted"}`}
               type="button"
+              role="tab"
+              aria-selected={mode === "signin"}
               onClick={() => setMode("signin")}
             >
               로그인
@@ -50,6 +52,8 @@ export function LoginScreen({ loading, error, notice, onSignIn, onSignUp }: Logi
             <button
               className={`min-h-10 text-sm font-black transition ${mode === "signup" ? "bg-white text-ink shadow-sm" : "text-muted"}`}
               type="button"
+              role="tab"
+              aria-selected={mode === "signup"}
               onClick={() => setMode("signup")}
             >
               회원가입
@@ -70,6 +74,8 @@ export function LoginScreen({ loading, error, notice, onSignIn, onSignUp }: Logi
                 className="min-h-12 border border-line bg-white px-3 font-normal outline-none transition focus:border-bridge focus:ring-4 focus:ring-bridge/10"
                 type="email"
                 autoComplete="email"
+                autoFocus
+                required
                 value={email}
                 placeholder="name@example.com"
                 disabled={loading}
@@ -82,11 +88,13 @@ export function LoginScreen({ loading, error, notice, onSignIn, onSignUp }: Logi
                 className="min-h-12 border border-line bg-white px-3 font-normal outline-none transition focus:border-bridge focus:ring-4 focus:ring-bridge/10"
                 type="password"
                 autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                required
                 value={password}
                 minLength={mode === "signup" ? 6 : undefined}
                 disabled={loading}
                 onChange={(event) => setPassword(event.target.value)}
               />
+              {mode === "signup" && <span className="text-xs font-normal text-muted">6자 이상 입력해 주세요.</span>}
             </label>
 
             {error && (
@@ -105,7 +113,7 @@ export function LoginScreen({ loading, error, notice, onSignIn, onSignUp }: Logi
             <button
               className="mt-1 inline-flex min-h-12 items-center justify-center gap-2 bg-bridge px-4 font-black text-white transition hover:bg-bridge-dark disabled:cursor-not-allowed disabled:opacity-50"
               type="submit"
-              disabled={loading || !email.trim() || !password}
+              disabled={loading || !email.trim() || !password || (mode === "signup" && password.length < 6)}
             >
               {loading ? (
                 <LoaderCircle className="animate-spin" size={18} />

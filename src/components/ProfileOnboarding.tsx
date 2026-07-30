@@ -38,14 +38,26 @@ export function ProfileOnboarding({ email, loading, error, onCreate, onLogout }:
 
           <div className="mt-7 grid grid-cols-2 gap-4 max-sm:grid-cols-1">
             <Field label="표시 이름">
-              <input value={input.displayName} onChange={(event) => setInput({ ...input, displayName: event.target.value })} />
+              <input
+                autoFocus
+                required
+                disabled={loading}
+                value={input.displayName}
+                onChange={(event) => setInput({ ...input, displayName: event.target.value })}
+              />
             </Field>
             <Field label="프로필 이름">
-              <input value={input.profileName} onChange={(event) => setInput({ ...input, profileName: event.target.value })} />
+              <input
+                required
+                disabled={loading}
+                value={input.profileName}
+                onChange={(event) => setInput({ ...input, profileName: event.target.value })}
+              />
             </Field>
             <Field label="사용 유형">
               <select
                 value={input.personaType}
+                disabled={loading}
                 onChange={(event) => setInput({ ...input, personaType: event.target.value as ProfileInput["personaType"] })}
               >
                 <option value="custom">일반 사용자</option>
@@ -54,22 +66,37 @@ export function ProfileOnboarding({ email, loading, error, onCreate, onLogout }:
               </select>
             </Field>
             <Field label="아이콘">
-              <input value={input.icon} maxLength={4} onChange={(event) => setInput({ ...input, icon: event.target.value })} />
+              <input
+                value={input.icon}
+                maxLength={4}
+                disabled={loading}
+                onChange={(event) => setInput({ ...input, icon: event.target.value })}
+              />
             </Field>
             <label className="col-span-2 grid gap-2 text-sm font-black max-sm:col-span-1">
               프로필 설명
               <textarea
                 className="min-h-24 resize-y border border-line px-3 py-3 font-normal outline-none focus:border-bridge focus:ring-4 focus:ring-bridge/10"
                 value={input.description}
+                disabled={loading}
                 onChange={(event) => setInput({ ...input, description: event.target.value })}
               />
             </label>
           </div>
 
-          {error && <div className="mt-4 border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</div>}
+          {error && (
+            <div className="mt-4 border border-red-200 bg-red-50 p-3 text-sm text-red-900" role="alert">
+              {error}
+            </div>
+          )}
 
           <div className="mt-6 flex flex-wrap justify-end gap-2">
-            <button className="min-h-11 border border-line bg-white px-4 text-sm font-black" type="button" onClick={onLogout}>
+            <button
+              className="min-h-11 border border-line bg-white px-4 text-sm font-black"
+              type="button"
+              disabled={loading}
+              onClick={onLogout}
+            >
               다른 계정으로 로그인
             </button>
             <button

@@ -1,13 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   Check,
   Copy,
   LoaderCircle,
+  Mic,
+  MicOff,
   RefreshCw,
   Save,
   SendHorizontal,
   Sparkles,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import type { MemoryCandidate, SelectionMode } from "../../contracts/types";
@@ -82,10 +86,33 @@ export function ChatWorkspace({
   const approvedCount = approved.length;
   const canGenerate = Boolean(intent && approvedCount > 0 && !generating);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const spokenTextRef = useRef(bridgePrompt);
+  const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [speechError, setSpeechError] = useState("");
+  const speechRecognitionSupported =
+    typeof window !== "undefined" && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const speechSynthesisSupported = typeof window !== "undefined" && "speechSynthesis" in window;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [intent, bridgePrompt, apiError, generating]);
+
+  useEffect(
+    () => () => {
+      recognitionRef.current?.stop();
+      window.speechSynthesis?.cancel();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (spokenTextRef.current === bridgePrompt) return;
+    window.speechSynthesis.cancel();
+    setSpeaking(false);
+    spokenTextRef.current = bridgePrompt;
+  }, [bridgePrompt]);
 
   const copyAnswer = async () => {
     if (!bridgePrompt) return;
@@ -97,6 +124,68 @@ export function ChatWorkspace({
     onAnalyze();
   };
 
+  const toggleVoiceInput = () => {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      setSpeechError("이 브라우저에서는 음성 입력을 지원하지 않습니다.");
+      return;
+    }
+
+    const recognition = new Recognition();
+    recognitionRef.current = recognition;
+    recognition.lang = "ko-KR";
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.onstart = () => {
+      setSpeechError("");
+      setListening(true);
+    };
+    recognition.onresult = (event) => {
+      const transcript = Array.from({ length: event.results.length }, (_, index) => event.results[index][0].transcript)
+        .join(" ")
+        .trim();
+      if (transcript) onQuestionChange(transcript);
+    };
+    recognition.onerror = (event) => {
+      setSpeechError(
+        event.error === "not-allowed"
+          ? "마이크 권한이 필요합니다. 브라우저 설정에서 마이크를 허용해 주세요."
+          : "음성을 인식하지 못했습니다. 다시 눌러 천천히 말씀해 주세요.",
+      );
+    };
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      setListening(false);
+    };
+    recognition.start();
+  };
+
+  const toggleAnswerSpeech = () => {
+    if (!speechSynthesisSupported || !bridgePrompt) return;
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(bridgePrompt);
+    utterance.lang = "ko-KR";
+    utterance.rate = easy ? 0.85 : 0.95;
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => {
+      setSpeaking(false);
+      setSpeechError("답변을 읽어주지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    };
+    setSpeechError("");
+    setSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
+
   return (
     <section className="flex h-screen min-h-[720px] flex-col bg-[#fbfaf6] max-lg:min-h-screen">
       <header className="flex min-h-16 items-center justify-between gap-4 border-b border-line bg-[#fbfaf6]/95 px-6 backdrop-blur max-sm:px-4">
@@ -105,7 +194,7 @@ export function ChatWorkspace({
             <span className="text-xs font-black uppercase text-bridge">Context Bridge</span>
             <Pill tone={uiMode === "easy" ? "normal" : "neutral"}>{easy ? "쉬운 모드" : "기본 모드"}</Pill>
           </div>
-          <h2 className="mt-1 truncate text-lg font-black text-ink max-sm:text-base">
+          <h2 className="mt-1 break-words text-lg font-black leading-tight text-ink max-sm:text-base">
             짧은 질문에 필요한 맥락을 안전하게 연결하기
           </h2>
         </div>
@@ -258,7 +347,17 @@ export function ChatWorkspace({
                     ))}
                   </ul>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button
+                    className="inline-flex min-h-10 items-center gap-2 rounded-[6px] border border-line bg-white px-4 text-sm font-black text-ink hover:border-bridge disabled:cursor-not-allowed disabled:opacity-45"
+                    type="button"
+                    disabled={!speechSynthesisSupported}
+                    title={speechSynthesisSupported ? "생성된 답변을 음성으로 읽습니다" : "이 브라우저에서는 읽어주기를 지원하지 않습니다"}
+                    onClick={toggleAnswerSpeech}
+                  >
+                    {speaking ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                    {speaking ? "읽기 중지" : "답변 읽기"}
+                  </button>
                   <button
                     className="inline-flex min-h-10 items-center gap-2 rounded-[6px] border border-line bg-white px-4 text-sm font-black text-ink hover:border-bridge disabled:cursor-not-allowed disabled:opacity-45"
                     type="button"
@@ -341,7 +440,7 @@ export function ChatWorkspace({
             ))}
           </div>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 rounded-[8px] border border-line bg-white p-2 shadow-[0_18px_48px_rgba(18,40,36,0.08)]">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 rounded-[8px] border border-line bg-white p-2 shadow-[0_18px_48px_rgba(18,40,36,0.08)] max-sm:grid-cols-1">
             <textarea
               className="max-h-40 min-h-12 resize-none rounded-[6px] border-0 bg-transparent px-3 py-3 text-sm leading-6 text-ink outline-none placeholder:text-muted"
               value={question}
@@ -354,7 +453,28 @@ export function ChatWorkspace({
                 }
               }}
             />
-            <div className="flex gap-2">
+            <div className="flex justify-end gap-2">
+              <button
+                className={`grid h-12 w-12 place-items-center rounded-[6px] border transition ${
+                  listening
+                    ? "border-red-700 bg-red-700 text-white"
+                    : "border-line bg-zinc-100 text-ink hover:border-bridge"
+                }`}
+                type="button"
+                aria-label={listening ? "음성 입력 중지" : "음성으로 질문하기"}
+                aria-pressed={listening}
+                disabled={!speechRecognitionSupported || analyzing || generating}
+                title={
+                  speechRecognitionSupported
+                    ? listening
+                      ? "음성 입력 중지"
+                      : "마이크로 질문 입력"
+                    : "이 브라우저에서는 음성 입력을 지원하지 않습니다"
+                }
+                onClick={toggleVoiceInput}
+              >
+                {listening ? <MicOff size={20} /> : <Mic size={20} />}
+              </button>
               <button
                 className="grid h-12 w-12 place-items-center rounded-[6px] border border-line bg-zinc-100 text-ink transition hover:border-bridge"
                 type="button"
@@ -367,6 +487,7 @@ export function ChatWorkspace({
                 <button
                   className="inline-flex h-12 items-center gap-2 rounded-[6px] bg-accent px-4 text-sm font-black text-[#2b180b] transition disabled:cursor-not-allowed disabled:opacity-45 max-sm:px-3"
                   type="button"
+                  aria-label={generating ? "답변 생성 중" : answerCompleted ? "답변 다시 만들기" : "답변 만들기"}
                   disabled={!canGenerate}
                   onClick={onGenerate}
                 >
@@ -389,6 +510,15 @@ export function ChatWorkspace({
             </div>
           </div>
 
+          {(listening || speechError) && (
+            <p
+              className={`text-center text-sm font-bold ${speechError ? "text-red-800" : "text-bridge-dark"}`}
+              role={speechError ? "alert" : "status"}
+            >
+              {speechError || "듣고 있습니다. 질문을 천천히 말씀해 주세요."}
+            </p>
+          )}
+
           <p className="text-center text-xs leading-5 text-muted">
             승인한 카드의 ID만 API에 전달합니다. 기밀 정보는 선택하거나 답변에 사용할 수 없습니다.
           </p>
@@ -396,6 +526,40 @@ export function ChatWorkspace({
       </footer>
     </section>
   );
+}
+
+type SpeechRecognitionResultLike = {
+  [index: number]: { transcript: string };
+};
+
+type SpeechRecognitionEventLike = {
+  results: {
+    length: number;
+    [index: number]: SpeechRecognitionResultLike;
+  };
+};
+
+type SpeechRecognitionErrorLike = {
+  error: string;
+};
+
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorLike) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognitionLike;
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+  }
 }
 
 function LoadingMessage({ title, body }: { title: string; body: string }) {
