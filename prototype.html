@@ -1,0 +1,1427 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Context Bridge MVP</title>
+  <style>
+    :root {
+      --ink: #18211f;
+      --muted: #65716d;
+      --line: #d9ded8;
+      --surface: #fbfaf6;
+      --panel: #ffffff;
+      --bridge: #116a67;
+      --bridge-dark: #0c4e4b;
+      --accent: #e78b3c;
+      --accent-soft: #fff0df;
+      --safe: #426c2f;
+      --sensitive: #b94b4b;
+      --quiet: #edf2ef;
+      --shadow: 0 18px 60px rgba(25, 38, 34, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(90deg, rgba(17, 106, 103, 0.05) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(231, 139, 60, 0.05) 1px, transparent 1px),
+        var(--surface);
+      background-size: 32px 32px;
+      color: var(--ink);
+      font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 22px;
+      background: #122824;
+      color: #f4f2ea;
+      overflow: auto;
+    }
+
+    .brand {
+      display: grid;
+      gap: 10px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.08);
+      font-weight: 800;
+      color: #f8d7ad;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 0;
+      color: rgba(244, 242, 234, 0.74);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .nav button {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 44px;
+      padding: 0 12px;
+      color: rgba(244, 242, 234, 0.8);
+      background: transparent;
+      border-left: 3px solid transparent;
+      text-align: left;
+    }
+
+    .nav button.active {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.1);
+      border-left-color: var(--accent);
+    }
+
+    .sidebar-note {
+      margin-top: 28px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(244, 242, 234, 0.82);
+      font-size: 13px;
+      line-height: 1.5;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    main {
+      padding: 28px;
+    }
+
+    .page {
+      display: none;
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .title-block {
+      display: grid;
+      gap: 8px;
+    }
+
+    .eyebrow {
+      color: var(--bridge);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    p {
+      line-height: 1.6;
+    }
+
+    .status-strip {
+      min-width: 280px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .metric {
+      padding: 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 22px;
+      color: var(--bridge-dark);
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.25fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-header {
+      min-height: 58px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .panel-body {
+      padding: 20px;
+    }
+
+    .control-stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    select,
+    textarea,
+    input[type="text"] {
+      width: 100%;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid #cbd3cf;
+      padding: 13px 14px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 112px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    select:focus,
+    textarea:focus,
+    input[type="text"]:focus {
+      border-color: var(--bridge);
+      box-shadow: 0 0 0 3px rgba(17, 106, 103, 0.14);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn {
+      min-height: 42px;
+      padding: 0 15px;
+      background: var(--quiet);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      font-weight: 750;
+    }
+
+    .btn.primary {
+      background: var(--bridge);
+      color: #fff;
+      border-color: var(--bridge);
+    }
+
+    .btn.accent {
+      background: var(--accent);
+      color: #2b180b;
+      border-color: var(--accent);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .example-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .example-grid button {
+      width: 100%;
+      padding: 11px 12px;
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      text-align: left;
+      line-height: 1.35;
+    }
+
+    .intent-box {
+      display: grid;
+      gap: 8px;
+      padding: 16px;
+      background: #f6fbf9;
+      border: 1px solid #cfe0dc;
+      margin-bottom: 16px;
+    }
+
+    .intent-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 9px;
+      background: var(--quiet);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .pill.sensitive {
+      background: #fff0f0;
+      border-color: #e5b1b1;
+      color: var(--sensitive);
+    }
+
+    .pill.normal {
+      background: #eef8ed;
+      border-color: #c8dfc1;
+      color: var(--safe);
+    }
+
+    .preview-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .context-item {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      min-height: 78px;
+      padding: 14px;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .context-item.excluded {
+      opacity: 0.58;
+      background: #f4f4f1;
+    }
+
+    .context-item input {
+      width: 20px;
+      height: 20px;
+      margin-top: 2px;
+      accent-color: var(--bridge);
+    }
+
+    .context-main {
+      display: grid;
+      gap: 4px;
+    }
+
+    .context-main strong {
+      font-size: 15px;
+    }
+
+    .context-main span {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .reason {
+      margin-top: 6px;
+      color: #3c4945;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .answer {
+      min-height: 260px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .answer h3 {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      font-size: 16px;
+      background: #f8f7f2;
+    }
+
+    .answer.bridge h3 {
+      background: #eaf5f2;
+      color: var(--bridge-dark);
+    }
+
+    .answer-text {
+      padding: 16px;
+      white-space: pre-wrap;
+      line-height: 1.62;
+      font-size: 15px;
+    }
+
+    .bridge-flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .flow-step {
+      min-height: 116px;
+      padding: 16px;
+      background: #fff;
+      border: 1px solid var(--line);
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      position: relative;
+    }
+
+    .flow-step::after {
+      content: "";
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      width: 10px;
+      height: 1px;
+      background: var(--line);
+    }
+
+    .flow-step:last-child::after {
+      display: none;
+    }
+
+    .flow-step strong {
+      color: var(--bridge-dark);
+      font-size: 15px;
+    }
+
+    .flow-step span {
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      background: var(--bridge);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .quality-panel {
+      margin-top: 16px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .quality-grid {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 14px;
+      padding: 20px;
+    }
+
+    .quality-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .quality-card h3 {
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .quality-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .quality-list li {
+      padding: 10px 11px;
+      background: #f8f7f2;
+      border-left: 3px solid #c9cfc9;
+      color: #33413d;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .quality-list li.good {
+      background: #edf7f3;
+      border-left-color: var(--bridge);
+    }
+
+    .quality-list li.warn {
+      background: #fff6eb;
+      border-left-color: var(--accent);
+    }
+
+    .copy-row {
+      display: flex;
+      justify-content: flex-end;
+      padding: 0 20px 20px;
+    }
+
+    .profile-summary {
+      display: grid;
+      gap: 12px;
+    }
+
+    .profile-section {
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .profile-section h3 {
+      padding: 14px 16px;
+      background: #f8f7f2;
+      border-bottom: 1px solid var(--line);
+      font-size: 16px;
+    }
+
+    .profile-fields {
+      display: grid;
+      gap: 0;
+    }
+
+    .field {
+      display: grid;
+      grid-template-columns: minmax(140px, 0.4fr) minmax(0, 1fr) auto auto;
+      gap: 10px;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--line);
+      align-items: center;
+    }
+
+    .field:last-child {
+      border-bottom: 0;
+    }
+
+    .field-name {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .field-value {
+      line-height: 1.45;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .history-item {
+      padding: 16px;
+      border: 1px solid var(--line);
+      background: #fff;
+      display: grid;
+      gap: 10px;
+    }
+
+    .history-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .empty {
+      padding: 24px;
+      border: 1px dashed #bfc8c3;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.7);
+      text-align: center;
+    }
+
+    .candidate {
+      margin-top: 16px;
+      padding: 16px;
+      background: var(--accent-soft);
+      border: 1px solid #f1c79c;
+      display: none;
+      gap: 10px;
+    }
+
+    .candidate.active {
+      display: grid;
+    }
+
+    .candidate-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    @media (max-width: 980px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      .workspace,
+      .comparison,
+      .bridge-flow,
+      .quality-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-step::after {
+        display: none;
+      }
+
+      .topbar {
+        display: grid;
+      }
+
+      .status-strip {
+        width: 100%;
+        min-width: 0;
+      }
+    }
+
+    @media (max-width: 620px) {
+      main {
+        padding: 18px;
+      }
+
+      h2 {
+        font-size: 24px;
+        line-height: 1.25;
+      }
+
+      .field {
+        grid-template-columns: 1fr;
+      }
+
+      .context-item {
+        grid-template-columns: 26px minmax(0, 1fr);
+      }
+
+      .context-item .pill {
+        grid-column: 2;
+        width: fit-content;
+      }
+
+      .status-strip {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">CB</div>
+        <h1>Context Bridge</h1>
+        <p>한마디만 해도, 현재 질문에 필요한 맥락을 붙여 더 좋은 AI 명령으로 바꿔주는 포용적 AI 데모</p>
+      </div>
+
+      <nav class="nav" aria-label="주요 화면">
+        <button class="active" data-page="main">⌁ 메인 데모</button>
+        <button data-page="profile">▣ 프로필 관리</button>
+        <button data-page="history">◴ 사용 기록</button>
+      </nav>
+
+      <div class="sidebar-note">
+        이 MVP는 외부 API 없이 규칙 기반으로 동작합니다. 핵심은 답변 생성이 아니라, 짧은 자연어를 고급 프롬프트로 바꾸는 흐름입니다.
+      </div>
+    </aside>
+
+    <main>
+      <section class="page active" id="page-main">
+        <div class="topbar">
+          <div class="title-block">
+            <div class="eyebrow">Inclusive AI Context Layer</div>
+            <h2>짧은 자연어를 고급 프롬프트로 바꾸는 다리</h2>
+            <p>AI를 잘 쓰는 사람이 직접 넣었을 조건, 목적, 제약, 출력 형식을 Context Bridge가 대신 구성합니다.</p>
+          </div>
+          <div class="status-strip">
+            <div class="metric">
+              <strong id="metricSelected">0</strong>
+              <span>추가 맥락</span>
+            </div>
+            <div class="metric">
+              <strong id="metricApproved">0</strong>
+              <span>승인 맥락</span>
+            </div>
+            <div class="metric">
+              <strong id="metricSensitive">0</strong>
+              <span>민감 맥락</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="workspace">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>질문 입력</h3>
+              <span class="pill">P0 Demo</span>
+            </div>
+            <div class="panel-body control-stack">
+              <label>
+                대표 프로필
+                <select id="profileSelect"></select>
+              </label>
+
+              <label>
+                사용자 질문
+                <textarea id="questionInput" placeholder="예: 딸이랑 내일 어디 가지?"></textarea>
+              </label>
+
+              <div class="button-row">
+                <button class="btn primary" id="analyzeButton">분석하기</button>
+                <button class="btn" id="resetButton">초기화</button>
+              </div>
+
+              <div>
+                <label>예시 질문</label>
+                <div class="example-grid" id="exampleButtons"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Context Preview</h3>
+              <button class="btn accent" id="generateButton" disabled>고급 프롬프트 만들기</button>
+            </div>
+            <div class="panel-body">
+              <div id="intentBox" class="intent-box">
+                <div class="intent-label">
+                  <strong>질문 의도 대기 중</strong>
+                  <span class="pill">분석 전</span>
+                </div>
+                <span>프로필과 질문을 선택한 뒤 분석을 실행하세요.</span>
+              </div>
+              <div class="preview-list" id="previewList"></div>
+              <div class="candidate" id="candidateBox">
+                <strong>새 프로필 후보</strong>
+                <span id="candidateText"></span>
+                <div class="candidate-actions">
+                  <button class="btn">프로필에 저장</button>
+                  <button class="btn">이번 대화에서만 사용</button>
+                  <button class="btn">저장하지 않음</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bridge-flow" aria-label="Context Bridge 입력 개선 흐름">
+          <div class="flow-step">
+            <div class="step-number">1</div>
+            <strong>짧은 자연어</strong>
+            <span>사용자는 생각나는 대로 짧게 말합니다. 좋은 프롬프트를 몰라도 시작할 수 있습니다.</span>
+          </div>
+          <div class="flow-step">
+            <div class="step-number">2</div>
+            <strong>부족한 맥락 진단</strong>
+            <span>목적, 제약조건, 출력 형식처럼 AI 고급 사용자가 넣을 요소를 찾습니다.</span>
+          </div>
+          <div class="flow-step">
+            <div class="step-number">3</div>
+            <strong>사용자 승인</strong>
+            <span>필요한 정보와 민감정보를 먼저 보여주고, 승인된 맥락만 사용합니다.</span>
+          </div>
+          <div class="flow-step">
+            <div class="step-number">4</div>
+            <strong>고급 프롬프트</strong>
+            <span>다른 AI에 그대로 넣을 수 있는 역할, 조건, 형식이 갖춰진 명령문을 만듭니다.</span>
+          </div>
+        </div>
+
+        <div class="comparison" id="comparison">
+          <div class="answer">
+            <h3>사용자 원문 입력</h3>
+            <div class="answer-text" id="genericAnswer">아직 프롬프트가 생성되지 않았습니다.</div>
+          </div>
+          <div class="answer bridge">
+            <h3>Context Bridge 고급 프롬프트</h3>
+            <div class="answer-text" id="bridgeAnswer">Context Preview에서 정보를 승인한 뒤 생성하세요.</div>
+          </div>
+        </div>
+
+        <div class="quality-panel">
+          <div class="panel-header">
+            <h3>Prompt Quality</h3>
+            <span class="pill">격차가 줄어든 지점</span>
+          </div>
+          <div class="quality-grid">
+            <div class="quality-card">
+              <h3>원문 입력의 빈칸 <span class="pill">Before</span></h3>
+              <ul class="quality-list" id="beforeQuality">
+                <li class="warn">분석 후 원문 입력에 부족한 요소를 표시합니다.</li>
+              </ul>
+            </div>
+            <div class="quality-card">
+              <h3>추가된 프롬프트 역량 <span class="pill normal">After</span></h3>
+              <ul class="quality-list" id="afterQuality">
+                <li class="good">고급 프롬프트 생성 후 보강된 요소를 표시합니다.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="copy-row">
+            <button class="btn" id="copyPromptButton" disabled>프롬프트 복사</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-profile">
+        <div class="topbar">
+          <div class="title-block">
+            <div class="eyebrow">Profile Manager</div>
+            <h2>개인화에 사용할 정보와 통제 상태</h2>
+            <p>데모 프로필은 정보별 활성화 여부와 민감도를 포함합니다.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h3>프로필 보기</h3>
+            <select id="profileViewSelect"></select>
+          </div>
+          <div class="panel-body">
+            <div class="profile-summary" id="profileSummary"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-history">
+        <div class="topbar">
+          <div class="title-block">
+            <div class="eyebrow">Context Log</div>
+            <h2>질문별 개인정보 활용 기록</h2>
+            <p>어떤 정보가 선택되고 승인됐는지 남겨 투명성을 확인합니다.</p>
+          </div>
+        </div>
+        <div class="history-list" id="historyList">
+          <div class="empty">아직 사용 기록이 없습니다.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const profiles = [
+      {
+        id: "senior_basic",
+        name: "김하늘",
+        group: "고령자 / AI 초보 사용자",
+        defaultQuestion: "딸이랑 내일 어디 가지?",
+        examples: ["딸이랑 내일 어디 가지?", "와이파이 연결하는 법 알려줘."],
+        fields: [
+          { key: "basic.age_group", label: "연령대", value: "60대", sensitivity: "normal", enabled: true, tags: ["easy_explanation"] },
+          { key: "preferences.place.quiet", label: "장소 취향", value: "조용한 실내 공간", sensitivity: "normal", enabled: true, tags: ["outing_plan"] },
+          { key: "preferences.place.low_stairs", label: "장소 취향", value: "계단이 적은 장소", sensitivity: "normal", enabled: true, tags: ["outing_plan"] },
+          { key: "preferences.place.rest", label: "장소 취향", value: "앉아서 쉴 수 있는 공간", sensitivity: "normal", enabled: true, tags: ["outing_plan"] },
+          { key: "preferences.activity.family", label: "활동 취향", value: "가족과 대화하기 좋은 일정", sensitivity: "normal", enabled: true, tags: ["outing_plan"] },
+          { key: "constraints.mobility", label: "이동 제약", value: "오래 걷기 어려움", sensitivity: "sensitive", enabled: true, tags: ["outing_plan"] },
+          { key: "constraints.transport", label: "이동 방식", value: "대중교통", sensitivity: "normal", enabled: true, tags: ["outing_plan", "low_budget_activity"] },
+          { key: "response_style.easy", label: "출력 형식", value: "짧고 쉬운 단계별 설명", sensitivity: "normal", enabled: true, tags: ["outing_plan", "easy_explanation", "how_to"] }
+        ]
+      },
+      {
+        id: "college_student",
+        name: "이지윤",
+        group: "대학생 / 반복 입력 사용자",
+        defaultQuestion: "이번 방학에 뭐 공부해야 해?",
+        examples: ["이번 방학에 뭐 공부해야 해?", "취업 준비 뭐부터 해야 해?"],
+        fields: [
+          { key: "basic.occupation", label: "현재 상태", value: "컴퓨터공학 전공 대학생", sensitivity: "normal", enabled: true, tags: ["learning_plan"] },
+          { key: "basic.school_year", label: "학년", value: "3학년", sensitivity: "normal", enabled: true, tags: ["learning_plan"] },
+          { key: "goals.career", label: "진로 목표", value: "백엔드 개발자 취업", sensitivity: "normal", enabled: true, tags: ["learning_plan"] },
+          { key: "goals.learning.spring", label: "학습 목표", value: "Spring Boot 프로젝트 경험", sensitivity: "normal", enabled: true, tags: ["learning_plan"] },
+          { key: "goals.learning.algorithm", label: "학습 목표", value: "코딩 테스트 준비", sensitivity: "normal", enabled: true, tags: ["learning_plan"] },
+          { key: "constraints.available_time", label: "하루 학습 가능 시간", value: "하루 3시간", sensitivity: "normal", enabled: true, tags: ["learning_plan"] },
+          { key: "preferences.learning_style", label: "학습 방식", value: "실습 중심, 주간 계획표 선호", sensitivity: "normal", enabled: true, tags: ["learning_plan"] }
+        ]
+      },
+      {
+        id: "child_easy_explain",
+        name: "박민준",
+        group: "어린이 / 쉬운 설명 필요 사용자",
+        defaultQuestion: "인공지능이 뭐야?",
+        examples: ["인공지능이 뭐야?", "블랙홀이 뭐야?"],
+        fields: [
+          { key: "basic.age_group", label: "연령대", value: "초등학생", sensitivity: "sensitive", enabled: true, tags: ["easy_explanation"] },
+          { key: "preferences.explanation.words", label: "설명 선호", value: "쉬운 단어", sensitivity: "normal", enabled: true, tags: ["easy_explanation", "how_to"] },
+          { key: "preferences.explanation.examples", label: "설명 선호", value: "생활 속 예시", sensitivity: "normal", enabled: true, tags: ["easy_explanation"] },
+          { key: "constraints.reading", label: "읽기 부담", value: "긴 글을 읽기 어려움", sensitivity: "normal", enabled: true, tags: ["easy_explanation", "how_to"] },
+          { key: "response_style.summary", label: "출력 형식", value: "짧은 문장과 한 줄 요약", sensitivity: "normal", enabled: true, tags: ["easy_explanation", "how_to"] }
+        ]
+      },
+      {
+        id: "budget_sensitive",
+        name: "최서연",
+        group: "경제적 제약 고려 사용자",
+        defaultQuestion: "돈 많이 안 쓰고 주말에 뭐 할까?",
+        examples: ["돈 많이 안 쓰고 주말에 뭐 할까?", "가까운 데서 저렴하게 놀 곳 있어?"],
+        fields: [
+          { key: "basic.location", label: "거주 지역", value: "서울 서대문구", sensitivity: "sensitive", enabled: true, tags: ["low_budget_activity"] },
+          { key: "constraints.budget", label: "예산", value: "하루 1만 5천 원 이하", sensitivity: "sensitive", enabled: true, tags: ["low_budget_activity", "outing_plan"] },
+          { key: "constraints.transport", label: "이동 방식", value: "대중교통 또는 도보", sensitivity: "normal", enabled: true, tags: ["low_budget_activity", "outing_plan"] },
+          { key: "preferences.activity.free", label: "활동 취향", value: "무료 전시, 공원 산책, 도서관", sensitivity: "normal", enabled: true, tags: ["low_budget_activity"] },
+          { key: "preferences.activity.cafe", label: "활동 취향", value: "저렴한 카페", sensitivity: "normal", enabled: true, tags: ["low_budget_activity"] },
+          { key: "response_style.rank", label: "출력 형식", value: "순위형 추천", sensitivity: "normal", enabled: true, tags: ["low_budget_activity"] }
+        ]
+      }
+    ];
+
+    const intentRules = [
+      {
+        id: "outing_plan",
+        label: "외출 계획",
+        confidence: 91,
+        keywords: ["어디", "만나", "가지", "놀", "외출", "딸", "친구"],
+        reasons: {
+          "장소 취향": "상황에 맞는 장소 유형을 고르기 위해 사용합니다.",
+          "활동 취향": "함께 하기 좋은 활동을 고르기 위해 사용합니다.",
+          "이동 제약": "걷는 시간이 긴 일정을 피하기 위해 사용합니다.",
+          "이동 방식": "이동 가능한 동선을 만들기 위해 사용합니다.",
+          "출력 형식": "AI가 결과를 사용자가 이해하기 쉬운 형식으로 만들도록 지시하기 위해 사용합니다.",
+          "예산": "비용 부담이 큰 선택지를 피하기 위해 사용합니다."
+        }
+      },
+      {
+        id: "learning_plan",
+        label: "학습 계획",
+        confidence: 89,
+        keywords: ["공부", "방학", "취업", "준비", "학습", "배워"],
+        reasons: {
+          "현재 상태": "현재 배경에 맞는 학습 우선순위를 정하기 위해 사용합니다.",
+          "학년": "준비 시점에 맞는 계획을 만들기 위해 사용합니다.",
+          "진로 목표": "목표 직무에 필요한 학습을 우선 추천하기 위해 사용합니다.",
+          "학습 목표": "이미 정한 목표를 계획에 반영하기 위해 사용합니다.",
+          "하루 학습 가능 시간": "과도하지 않은 계획을 만들기 위해 사용합니다.",
+          "학습 방식": "선호하는 방식에 맞게 계획을 구성하기 위해 사용합니다."
+        }
+      },
+      {
+        id: "easy_explanation",
+        label: "쉬운 설명",
+        confidence: 94,
+        keywords: ["뭐야", "설명", "알려줘", "이해", "무슨 뜻"],
+        reasons: {
+          "연령대": "설명 수준을 쉽게 맞추기 위해 사용합니다.",
+          "설명 선호": "어려운 말보다 이해하기 쉬운 방식으로 설명하기 위해 사용합니다.",
+          "읽기 부담": "AI가 짧은 문장으로 설명하도록 지시하기 위해 사용합니다.",
+          "출력 형식": "AI가 마지막에 핵심을 다시 알려주도록 지시하기 위해 사용합니다."
+        }
+      },
+      {
+        id: "low_budget_activity",
+        label: "저비용 활동 추천",
+        confidence: 92,
+        keywords: ["돈", "저렴", "무료", "예산", "비싸", "주말"],
+        reasons: {
+          "거주 지역": "이동비가 적게 드는 근처 활동을 찾기 위해 사용합니다.",
+          "예산": "비용 부담이 적은 활동을 추천하기 위해 사용합니다.",
+          "이동 방식": "교통비를 줄이는 동선을 만들기 위해 사용합니다.",
+          "활동 취향": "돈이 적게 드는 선호 활동을 우선 추천하기 위해 사용합니다.",
+          "출력 형식": "AI가 선택지를 비교하기 쉽게 구성하도록 지시하기 위해 사용합니다."
+        }
+      },
+      {
+        id: "how_to",
+        label: "생활 방법 안내",
+        confidence: 86,
+        keywords: ["하는 법", "연결", "사용법", "방법", "켜는"],
+        reasons: {
+          "연령대": "설명 수준을 맞추기 위해 사용합니다.",
+          "설명 선호": "쉬운 표현으로 안내하기 위해 사용합니다.",
+          "읽기 부담": "짧고 단계적인 설명을 제공하기 위해 사용합니다.",
+          "출력 형식": "AI가 따라 하기 쉬운 순서로 설명하도록 지시하기 위해 사용합니다."
+        }
+      }
+    ];
+
+    const promptExamples = {
+      outing_plan: {
+        plain: "딸이랑 내일 어디 가지?",
+        bridge: "너는 고령자도 이해하기 쉽게 외출 일정을 설계하는 생활 도우미야.\n\n사용자의 원래 질문은 \"딸이랑 내일 어디 가지?\"야.\n\n아래 조건을 반드시 반영해서 외출 계획을 추천해줘.\n- 조용한 실내 공간을 선호함\n- 계단이 적은 장소를 선호함\n- 앉아서 쉴 수 있는 공간이 필요함\n- 가족과 대화하기 좋은 일정을 선호함\n- 오래 걷기 어려움\n- 대중교통을 이용함\n\n출력 형식:\n1. 이동 부담이 적은 일정 1개를 먼저 제안해줘.\n2. 장소 선택 이유를 쉬운 문장으로 설명해줘.\n3. 이동 순서를 단계별로 써줘.\n4. 너무 긴 설명은 피하고, 바로 따라 할 수 있게 써줘."
+      },
+      learning_plan: {
+        plain: "이번 방학에 뭐 공부해야 해?",
+        bridge: "너는 컴퓨터공학 전공 대학생의 취업 준비를 돕는 학습 코치야.\n\n사용자의 원래 질문은 \"이번 방학에 뭐 공부해야 해?\"야.\n\n아래 사용자 맥락을 반영해서 방학 학습 계획을 짜줘.\n- 컴퓨터공학 전공 대학생\n- 현재 3학년\n- 백엔드 개발자 취업이 목표\n- Spring Boot 프로젝트 경험을 쌓고 싶음\n- 코딩 테스트 준비가 필요함\n- 하루 학습 가능 시간은 3시간\n- 실습 중심 학습과 주간 계획표를 선호함\n\n출력 형식:\n1. 이번 방학의 학습 우선순위를 먼저 정리해줘.\n2. 4주 단위 계획표를 만들어줘.\n3. 하루 3시간 안에서 현실적으로 가능한 분량만 제안해줘.\n4. 각 주차마다 결과물이나 체크포인트를 포함해줘."
+      },
+      easy_explanation: {
+        plain: "인공지능이 뭐야?",
+        bridge: "너는 초등학생에게 어려운 개념을 쉽게 설명하는 선생님이야.\n\n사용자의 원래 질문은 \"인공지능이 뭐야?\"야.\n\n아래 조건을 지켜서 설명해줘.\n- 초등학생도 이해할 수 있는 쉬운 단어를 사용해줘.\n- 생활 속 예시를 먼저 들어줘.\n- 긴 문장은 피하고 짧은 문장으로 써줘.\n- 전문용어는 꼭 필요할 때만 쓰고, 쓰면 바로 풀어서 설명해줘.\n- 마지막에 한 줄 요약을 넣어줘.\n\n출력 형식:\n1. 쉬운 비유 1개\n2. 핵심 설명 3문장 이하\n3. 생활 속 예시 1개\n4. 한 줄 요약"
+      },
+      low_budget_activity: {
+        plain: "돈 많이 안 쓰고 주말에 뭐 할까?",
+        bridge: "너는 사용자의 예산 부담을 고려해서 현실적인 주말 활동을 추천하는 생활 플래너야.\n\n사용자의 원래 질문은 \"돈 많이 안 쓰고 주말에 뭐 할까?\"야.\n\n아래 조건을 반드시 반영해줘.\n- 거주 지역은 서울 서대문구\n- 하루 예산은 1만 5천 원 이하\n- 이동은 대중교통 또는 도보를 선호함\n- 무료 전시, 공원 산책, 도서관, 저렴한 카페를 선호함\n\n출력 형식:\n1. 비용이 낮은 순서로 3개를 추천해줘.\n2. 예상 비용 범위를 함께 적어줘.\n3. 교통비가 많이 들거나 과소비를 유도하는 선택지는 피해서 제안해줘.\n4. 각 선택지마다 왜 이 사용자에게 맞는지 설명해줘."
+      },
+      how_to: {
+        plain: "와이파이 연결하는 법 알려줘.",
+        bridge: "너는 스마트폰 사용이 익숙하지 않은 사람에게 기기 사용법을 쉽게 알려주는 안내자야.\n\n사용자의 원래 질문은 \"와이파이 연결하는 법 알려줘.\"야.\n\n아래 조건을 반영해서 설명해줘.\n- 쉬운 단어를 사용해줘.\n- 한 번에 한 행동만 안내해줘.\n- 단계별로 번호를 붙여줘.\n- 사용자가 눌러야 하는 메뉴 이름은 따옴표로 표시해줘.\n- 마지막에 잘 안 될 때 확인할 점 2가지를 알려줘.\n\n출력 형식:\n1. 준비할 것\n2. 단계별 방법\n3. 안 될 때 확인할 점"
+      }
+    };
+
+    const state = {
+      profileId: profiles[0].id,
+      question: profiles[0].defaultQuestion,
+      intent: null,
+      selected: [],
+      approvals: new Map(),
+      history: []
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function currentProfile() {
+      return profiles.find((profile) => profile.id === state.profileId);
+    }
+
+    function detectIntent(question) {
+      const normalized = question.trim().toLowerCase();
+      let best = intentRules[0];
+      let bestScore = -1;
+
+      for (const rule of intentRules) {
+        const score = rule.keywords.reduce((sum, keyword) => normalized.includes(keyword) ? sum + 1 : sum, 0);
+        if (score > bestScore) {
+          best = rule;
+          bestScore = score;
+        }
+      }
+
+      if (bestScore <= 0) {
+        return { ...intentRules[2], confidence: 64, lowConfidence: true };
+      }
+      return best;
+    }
+
+    function selectContext(profile, intent) {
+      return profile.fields
+        .filter((field) => field.enabled && field.tags.includes(intent.id))
+        .map((field) => ({
+          ...field,
+          reason: intent.reasons[field.label] || "현재 질문을 더 좋은 프롬프트로 바꾸기 위해 필요한 정보입니다."
+        }));
+    }
+
+    function populateProfiles() {
+      const options = profiles.map((profile) => `<option value="${profile.id}">${profile.name} · ${profile.group}</option>`).join("");
+      $("profileSelect").innerHTML = options;
+      $("profileViewSelect").innerHTML = options;
+      $("profileSelect").value = state.profileId;
+      $("profileViewSelect").value = state.profileId;
+    }
+
+    function renderExamples() {
+      const profile = currentProfile();
+      $("exampleButtons").innerHTML = profile.examples.map((question) => (
+        `<button type="button" data-question="${question.replaceAll('"', "&quot;")}">${question}</button>`
+      )).join("");
+
+      $("exampleButtons").querySelectorAll("button").forEach((button) => {
+        button.addEventListener("click", () => {
+          $("questionInput").value = button.dataset.question;
+        });
+      });
+    }
+
+    function renderProfileSummary() {
+      const profile = profiles.find((item) => item.id === $("profileViewSelect").value);
+      const grouped = profile.fields.reduce((acc, field) => {
+        const section = field.key.split(".")[0];
+        acc[section] ||= [];
+        acc[section].push(field);
+        return acc;
+      }, {});
+
+      const sectionNames = {
+        basic: "기본 정보",
+        preferences: "취향",
+        constraints: "제약조건",
+        goals: "목표",
+        response_style: "출력 형식"
+      };
+
+      $("profileSummary").innerHTML = Object.entries(grouped).map(([section, fields]) => `
+        <div class="profile-section">
+          <h3>${sectionNames[section] || section}</h3>
+          <div class="profile-fields">
+            ${fields.map((field) => `
+              <div class="field">
+                <div class="field-name">${field.label}</div>
+                <div class="field-value">${field.value}</div>
+                <span class="pill ${field.enabled ? "normal" : ""}">${field.enabled ? "활성" : "비활성"}</span>
+                <span class="pill ${field.sensitivity === "sensitive" ? "sensitive" : "normal"}">${field.sensitivity === "sensitive" ? "민감" : "보통"}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderPreview() {
+      const selected = state.selected;
+      $("metricSelected").textContent = selected.length;
+      $("metricApproved").textContent = selected.filter((field) => state.approvals.get(field.key)).length;
+      $("metricSensitive").textContent = selected.filter((field) => field.sensitivity === "sensitive").length;
+
+      if (!state.intent) {
+        $("previewList").innerHTML = "";
+        return;
+      }
+
+      $("intentBox").innerHTML = `
+        <div class="intent-label">
+          <strong>${state.intent.label}</strong>
+          <span class="pill">${state.intent.confidence}% 신뢰도</span>
+        </div>
+        <span>${state.intent.lowConfidence ? "의도가 조금 불명확합니다. 데모에서는 가장 가까운 의도로 분석했습니다." : "현재 질문에 필요한 프로필 정보만 골랐습니다."}</span>
+      `;
+
+      $("previewList").innerHTML = selected.map((field) => {
+        const checked = state.approvals.get(field.key);
+        return `
+          <div class="context-item ${checked ? "" : "excluded"}">
+            <input type="checkbox" data-key="${field.key}" ${checked ? "checked" : ""} aria-label="${field.label} 사용 여부">
+            <div class="context-main">
+              <strong>${field.label}</strong>
+              <span>${field.value}</span>
+              <div class="reason">${field.reason}</div>
+            </div>
+            <span class="pill ${field.sensitivity === "sensitive" ? "sensitive" : "normal"}">${field.sensitivity === "sensitive" ? "민감" : "보통"}</span>
+          </div>
+        `;
+      }).join("");
+
+      $("previewList").querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+          state.approvals.set(checkbox.dataset.key, checkbox.checked);
+          renderPreview();
+          if ($("bridgeAnswer").textContent.includes("너는")) {
+            renderQuality("generated");
+          } else {
+            renderQuality("analyzed");
+          }
+        });
+      });
+    }
+
+    function analyze() {
+      const profile = currentProfile();
+      const question = $("questionInput").value.trim();
+      state.question = question || profile.defaultQuestion;
+      $("questionInput").value = state.question;
+      state.intent = detectIntent(state.question);
+      state.selected = selectContext(profile, state.intent);
+      state.approvals = new Map(state.selected.map((field) => [field.key, true]));
+      $("generateButton").disabled = state.selected.length === 0;
+      $("candidateBox").classList.remove("active");
+      renderPreview();
+      renderQuality("analyzed");
+    }
+
+    function approvedFields() {
+      return state.selected.filter((field) => state.approvals.get(field.key));
+    }
+
+    function renderQuality(mode = "idle") {
+      if (mode === "idle") {
+        $("beforeQuality").innerHTML = `<li class="warn">분석 후 원문 입력에 부족한 요소를 표시합니다.</li>`;
+        $("afterQuality").innerHTML = `<li class="good">고급 프롬프트 생성 후 보강된 요소를 표시합니다.</li>`;
+        $("copyPromptButton").disabled = true;
+        return;
+      }
+
+      if (mode === "analyzed") {
+        $("beforeQuality").innerHTML = `
+          <li class="warn">사용자 의도는 보이지만 목적이 구체적인 명령으로 정리되지 않았습니다.</li>
+          <li class="warn">사용자 맥락과 제약조건이 원문에 들어 있지 않습니다.</li>
+          <li class="warn">AI가 어떤 형식으로 출력해야 하는지 알 수 없습니다.</li>
+        `;
+        $("afterQuality").innerHTML = `
+          <li class="good">Context Preview에서 추가할 맥락을 승인하면 고급 프롬프트가 만들어집니다.</li>
+        `;
+        $("copyPromptButton").disabled = true;
+        return;
+      }
+
+      const approved = approvedFields();
+      const labels = new Set(approved.map((field) => field.label));
+      const hasSensitive = approved.some((field) => field.sensitivity === "sensitive");
+      const hasOutput = labels.has("출력 형식");
+      const hasConstraint = approved.some((field) => field.key.startsWith("constraints"));
+      const hasPreference = approved.some((field) => field.key.startsWith("preferences"));
+
+      const afterItems = [
+        "AI가 맡을 역할을 먼저 지정했습니다.",
+        "사용자의 원래 질문을 보존했습니다.",
+        hasPreference ? "취향과 선호를 명령문에 추가했습니다." : null,
+        hasConstraint ? "예산, 이동, 시간 같은 제약조건을 추가했습니다." : null,
+        hasOutput ? "출력 형식과 설명 방식을 명확히 지시했습니다." : null,
+        hasSensitive ? "민감정보는 Context Preview에서 승인된 뒤에만 포함했습니다." : "민감정보 없이 필요한 맥락만 구성했습니다."
+      ].filter(Boolean);
+
+      $("beforeQuality").innerHTML = `
+        <li class="warn">원문은 ${state.question.length}자라서 AI가 필요한 조건을 추측해야 합니다.</li>
+        <li class="warn">역할 지시가 없어 AI가 어떤 관점으로 처리해야 할지 불명확합니다.</li>
+        <li class="warn">제약조건과 출력 형식이 빠져 결과 품질이 사용자 입력 역량에 의존합니다.</li>
+      `;
+      $("afterQuality").innerHTML = afterItems.map((item) => `<li class="good">${item}</li>`).join("");
+      $("copyPromptButton").disabled = false;
+    }
+
+    function buildBridgePrompt(template, approved, rejected) {
+      if (approved.length === 0) {
+        return "승인된 정보가 없습니다.\n\nContext Bridge는 사용자가 승인한 맥락만 사용해 프롬프트를 만듭니다. 정보를 승인한 뒤 다시 생성하세요.";
+      }
+
+      const rejectedValues = rejected.map((field) => field.value);
+      let prompt = template;
+
+      for (const value of rejectedValues) {
+        const bullet = `- ${value}`;
+        prompt = prompt.replace(`${bullet}\n`, "");
+        prompt = prompt.replace(bullet, "");
+      }
+
+      if (rejectedValues.length > 0) {
+        prompt += `\n\n사용자가 제외한 정보는 프롬프트에 반영하지 마세요: ${rejectedValues.join(", ")}`;
+      }
+
+      return prompt.trim();
+    }
+
+    function generatePrompts() {
+      if (!state.intent) return;
+      const promptSet = promptExamples[state.intent.id] || promptExamples.easy_explanation;
+      const approved = approvedFields();
+      const rejected = state.selected.filter((field) => !state.approvals.get(field.key));
+
+      $("genericAnswer").textContent = promptSet.plain;
+      const bridge = buildBridgePrompt(promptSet.bridge, approved, rejected);
+      $("bridgeAnswer").textContent = bridge;
+      renderQuality("generated");
+
+      const question = state.question.toLowerCase();
+      if (question.includes("비") || question.includes("실내")) {
+        $("candidateText").textContent = "사용자는 비 오는 날 실내 활동을 선호합니다.";
+        $("candidateBox").classList.add("active");
+      }
+
+      const record = {
+        profile: currentProfile().name,
+        question: state.question,
+        intent: state.intent.label,
+        selected: state.selected.map((field) => field.value),
+        approved: approved.map((field) => field.value),
+        rejected: rejected.map((field) => field.value),
+        sensitiveCount: state.selected.filter((field) => field.sensitivity === "sensitive").length,
+        createdAt: new Date().toLocaleString("ko-KR")
+      };
+      state.history.unshift(record);
+      renderHistory();
+    }
+
+    function renderHistory() {
+      if (state.history.length === 0) {
+        $("historyList").innerHTML = `<div class="empty">아직 사용 기록이 없습니다.</div>`;
+        return;
+      }
+
+      $("historyList").innerHTML = state.history.map((item) => `
+        <div class="history-item">
+          <h3>${item.question}</h3>
+          <div class="history-meta">
+            <span class="pill">${item.profile}</span>
+            <span class="pill">${item.intent}</span>
+            <span class="pill sensitive">민감 ${item.sensitiveCount}</span>
+            <span>${item.createdAt}</span>
+          </div>
+          <div><strong>승인한 정보</strong>: ${item.approved.length ? item.approved.join(", ") : "없음"}</div>
+          <div><strong>제외한 정보</strong>: ${item.rejected.length ? item.rejected.join(", ") : "없음"}</div>
+        </div>
+      `).join("");
+    }
+
+    function resetDemo() {
+      const profile = currentProfile();
+      state.intent = null;
+      state.selected = [];
+      state.approvals = new Map();
+      $("questionInput").value = profile.defaultQuestion;
+      $("generateButton").disabled = true;
+      $("genericAnswer").textContent = "아직 프롬프트가 생성되지 않았습니다.";
+      $("bridgeAnswer").textContent = "Context Preview에서 정보를 승인한 뒤 생성하세요.";
+      $("intentBox").innerHTML = `
+        <div class="intent-label">
+          <strong>질문 의도 대기 중</strong>
+          <span class="pill">분석 전</span>
+        </div>
+        <span>프로필과 질문을 선택한 뒤 분석을 실행하세요.</span>
+      `;
+      $("candidateBox").classList.remove("active");
+      renderPreview();
+      renderQuality("idle");
+    }
+
+    function switchPage(pageId) {
+      document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"));
+      document.querySelectorAll(".nav button").forEach((button) => button.classList.remove("active"));
+      $(`page-${pageId}`).classList.add("active");
+      document.querySelector(`.nav button[data-page="${pageId}"]`).classList.add("active");
+    }
+
+    function bindEvents() {
+      $("profileSelect").addEventListener("change", (event) => {
+        state.profileId = event.target.value;
+        $("profileViewSelect").value = state.profileId;
+        $("questionInput").value = currentProfile().defaultQuestion;
+        renderExamples();
+        renderProfileSummary();
+        resetDemo();
+      });
+
+      $("profileViewSelect").addEventListener("change", renderProfileSummary);
+      $("analyzeButton").addEventListener("click", analyze);
+      $("generateButton").addEventListener("click", generatePrompts);
+      $("resetButton").addEventListener("click", resetDemo);
+      $("copyPromptButton").addEventListener("click", async () => {
+        const prompt = $("bridgeAnswer").textContent;
+        if (!prompt || prompt.includes("Context Preview")) return;
+
+        try {
+          await navigator.clipboard.writeText(prompt);
+          $("copyPromptButton").textContent = "복사됨";
+          setTimeout(() => {
+            $("copyPromptButton").textContent = "프롬프트 복사";
+          }, 1200);
+        } catch {
+          $("copyPromptButton").textContent = "복사 실패";
+          setTimeout(() => {
+            $("copyPromptButton").textContent = "프롬프트 복사";
+          }, 1200);
+        }
+      });
+
+      document.querySelectorAll(".nav button").forEach((button) => {
+        button.addEventListener("click", () => switchPage(button.dataset.page));
+      });
+    }
+
+    function init() {
+      populateProfiles();
+      $("questionInput").value = currentProfile().defaultQuestion;
+      renderExamples();
+      renderProfileSummary();
+      bindEvents();
+      renderPreview();
+      renderQuality("idle");
+    }
+
+    init();
+  </script>
+</body>
+</html>

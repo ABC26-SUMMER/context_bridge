@@ -1,0 +1,124 @@
+{
+  "user": {
+    "id": "demo-senior",
+    "email": "senior@contextbridge.demo"
+  },
+  "profiles": [
+    {
+      "id": "senior-profile",
+      "displayName": "김영자",
+      "personaType": "older_adult",
+      "name": "고령 사용자 프로필",
+      "icon": "👵",
+      "description": "쉬운 설명과 이동 접근성 데모 계정",
+      "contexts": [
+        {
+          "id": "01644799-b1e4-4683-8842-a0ec67e0e414",
+          "title": "연령대",
+          "category": "profile",
+          "content": "70대",
+          "tags": [
+            "연령"
+          ],
+          "isActive": true,
+          "privacyLevel": "sensitive",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "4019bad4-9bec-48bc-9b2d-5e5d1afa3d1b",
+          "title": "디지털 숙련도",
+          "category": "constraint",
+          "content": "초급",
+          "tags": [
+            "디지털",
+            "설명"
+          ],
+          "isActive": true,
+          "privacyLevel": "sensitive",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "1d246054-9fd7-4deb-88ec-beb6d16ceafb",
+          "title": "이동 접근성",
+          "category": "constraint",
+          "content": "장시간 보행 어려움",
+          "tags": [
+            "이동",
+            "접근성",
+            "외출"
+          ],
+          "isActive": true,
+          "privacyLevel": "sensitive",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "8d44c30e-a629-4c05-a683-f08b78099271",
+          "title": "이동 수단",
+          "category": "constraint",
+          "content": "버스와 지하철",
+          "tags": [
+            "이동",
+            "외출"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "58550930-4741-416d-92ce-2350dafdb246",
+          "title": "장소 선호",
+          "category": "preference",
+          "content": "좌석이 있는 곳, 실내 공간",
+          "tags": [
+            "장소",
+            "외출"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "e2ea1d82-21fe-4a17-a515-a32b03d1504e",
+          "title": "접근성 선호",
+          "category": "preference",
+          "content": "큰 글씨, 짧은 문장, 쉬운 표현, 단계별 안내",
+          "tags": [
+            "접근성",
+            "설명"
+          ],
+          "isActive": true,
+          "privacyLevel": "sensitive",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "d181898e-8145-41e5-bb3b-c0847305baed",
+          "title": "답변 방식",
+          "category": "preference",
+          "content": "짧고 쉬운 설명",
+          "tags": [
+            "답변",
+            "설명"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "5fe1cd76-15a5-46da-8320-98fb21282712",
+          "title": "복용 약물",
+          "category": "constraint",
+          "content": "혈압약 복용 중",
+          "tags": [
+            "건강",
+            "복용"
+          ],
+          "isActive": true,
+          "privacyLevel": "confidential",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        }
+      ]
+    }
+  ],
+  "auditLogs": [],
+  "mode": "local-demo"
+}

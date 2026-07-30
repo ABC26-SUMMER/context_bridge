@@ -1,0 +1,150 @@
+{
+  "user": {
+    "id": "demo-student",
+    "email": "student@contextbridge.demo"
+  },
+  "profiles": [
+    {
+      "id": "student-profile",
+      "displayName": "전이현",
+      "personaType": "university_student",
+      "name": "대학생 프로필",
+      "icon": "🎓",
+      "description": "AI·SW학과 3학년 데모 계정",
+      "contexts": [
+        {
+          "id": "8470536a-6314-4bc4-a8e4-ebc030e320a2",
+          "title": "전공",
+          "category": "profile",
+          "content": "AI·SW학과",
+          "tags": [
+            "교육",
+            "전공"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "0152be4a-6516-4a10-a40e-4768da0d2477",
+          "title": "학년",
+          "category": "profile",
+          "content": "3학년",
+          "tags": [
+            "교육",
+            "학년"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "082c157b-f062-4292-84ec-6476c95e1559",
+          "title": "진로 목표",
+          "category": "goal",
+          "content": "공기업 전산직",
+          "tags": [
+            "취업",
+            "직무"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "8d498b4e-f472-4782-a718-d294cd343b3e",
+          "title": "자격증 목표",
+          "category": "goal",
+          "content": "SQLD, 정보처리기사",
+          "tags": [
+            "자격증",
+            "공부"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "ee9d76de-ded4-4e77-97fa-0f027bc44dc6",
+          "title": "현재 기술",
+          "category": "profile",
+          "content": "Python, React, Supabase",
+          "tags": [
+            "개발",
+            "기술"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "e4605104-b233-4977-a60d-b15532a64b4d",
+          "title": "공부 가능 시간",
+          "category": "constraint",
+          "content": "평일 1시간",
+          "tags": [
+            "시간",
+            "공부"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "b68466e1-46f1-4a3f-9421-fe79f1c90f3f",
+          "title": "이동 수단",
+          "category": "constraint",
+          "content": "대중교통",
+          "tags": [
+            "이동",
+            "외출"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "191e46a3-5888-43fa-be1c-bc45ce583fcc",
+          "title": "예산",
+          "category": "constraint",
+          "content": "대학생 수준",
+          "tags": [
+            "예산",
+            "외출"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "6df1c136-f958-48ce-9dba-80319d08cc8c",
+          "title": "장소 선호",
+          "category": "preference",
+          "content": "조용한 장소, 사진 찍기 좋은 공간",
+          "tags": [
+            "장소",
+            "외출"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        },
+        {
+          "id": "2cc5755e-2c63-4135-8eed-95f529050c2a",
+          "title": "답변 방식",
+          "category": "preference",
+          "content": "구체적이고 단계적인 설명",
+          "tags": [
+            "답변",
+            "설명"
+          ],
+          "isActive": true,
+          "privacyLevel": "normal",
+          "updatedAt": "2026-07-29T04:15:32.764Z"
+        }
+      ]
+    }
+  ],
+  "auditLogs": [],
+  "mode": "local-demo"
+}

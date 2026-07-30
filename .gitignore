@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.log
+*.tsbuildinfo
+vite-dev.*
+context_bridge_*.png
+.env
+.env.local
+.env.*.local
+
+.vercel/
