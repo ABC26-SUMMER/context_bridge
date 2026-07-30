@@ -1,6 +1,5 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
-import { createServer as createViteServer } from 'vite';
 import { pathToFileURL } from 'node:url';
 import { env, serverEnvStatus, assertServerEnv } from './backend/config/env.js';
 import { GoogleGenAI } from '@google/genai';
@@ -40,15 +39,15 @@ import { validateAndRepairAnswer } from './backend/server/answerGuard.js';
 const PORT = env.port;
 const apiKey = env.geminiApiKey;
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-// 최신 → 폴백 순. gemini-flash-latest는 GA Flash를 가리키는 별칭이라
-// 모델 세대가 바뀌어도 코드 수정 없이 따라간다.
+// 理쒖떊 ???대갚 ?? gemini-flash-latest??GA Flash瑜?媛由ы궎??蹂꾩묶?대씪
+// 紐⑤뜽 ?몃?媛 諛붾뚯뼱??肄붾뱶 ?섏젙 ?놁씠 ?곕씪媛꾨떎.
 const CANDIDATE_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
 export type Generate = (prompt: string) => Promise<string>;
 
-// 스키마를 강제해 JSON을 받는 생성기. Gemini responseSchema를 쓴다.
-// 실패하거나(무효 출력) 라이브 클라이언트가 없으면 undefined를 반환해
-// 호출자가 로컬 결정론 경로로 폴백하게 한다. 테스트는 이 경로를 타지 않는다(live=false).
+// ?ㅽ궎留덈? 媛뺤젣??JSON??諛쏅뒗 ?앹꽦湲? Gemini responseSchema瑜??대떎.
+// ?ㅽ뙣?섍굅??臾댄슚 異쒕젰) ?쇱씠釉??대씪?댁뼵?멸? ?놁쑝硫?undefined瑜?諛섑솚??
+// ?몄텧?먭? 濡쒖뺄 寃곗젙濡?寃쎈줈濡??대갚?섍쾶 ?쒕떎. ?뚯뒪?몃뒗 ??寃쎈줈瑜??吏 ?딅뒗??live=false).
 export type GenerateStructured = (
   prompt: string,
   schema: unknown,
@@ -70,20 +69,20 @@ function makeLiveGenerateStructured(client: GoogleGenAI): GenerateStructured {
         if (!text) continue;
         return JSON.parse(text);
       } catch {
-        // 다음 모델로 폴백
+        // ?ㅼ쓬 紐⑤뜽濡??대갚
       }
     }
     return undefined;
   };
 }
 
-// 오프라인/테스트용. 네트워크를 타지 않으며 항상 결정적으로 응답한다.
+// ?ㅽ봽?쇱씤/?뚯뒪?몄슜. ?ㅽ듃?뚰겕瑜??吏 ?딆쑝硫???긽 寃곗젙?곸쑝濡??묐떟?쒕떎.
 export const offlineGenerate: Generate = async (prompt) => {
-  const question = prompt.match(/\[(?:사용자\s*)?질문\]\n([\s\S]*?)(?:\n\n\[|$)/)?.[1]?.trim() || '';
+  const question = prompt.match(/\[(?:?ъ슜??s*)?吏덈Ц\]\n([\s\S]*?)(?:\n\n\[|$)/)?.[1]?.trim() || '';
   const approved = [...prompt.matchAll(/^- \[[^\]]+\] [^:]+:\s*(.+)$/gm)].map((match) => match[1].trim());
   return approved.length
-    ? `개인화 답변(오프라인 데모): “${question}”에 대해 ${approved.join(', ')} 조건을 지키는 선택지를 우선 추천합니다. 구체적인 후보를 비교해 실행하기 쉬운 순서로 결정하세요.`
-    : `일반 답변(오프라인 데모): “${question}”에 대한 기본 안내입니다.`;
+    ? `媛쒖씤???듬?(?ㅽ봽?쇱씤 ?곕え): ??{question}?앹뿉 ???${approved.join(', ')} 議곌굔??吏?ㅻ뒗 ?좏깮吏瑜??곗꽑 異붿쿇?⑸땲?? 援ъ껜?곸씤 ?꾨낫瑜?鍮꾧탳???ㅽ뻾?섍린 ?ъ슫 ?쒖꽌濡?寃곗젙?섏꽭??`
+    : `?쇰컲 ?듬?(?ㅽ봽?쇱씤 ?곕え): ??{question}?앹뿉 ???湲곕낯 ?덈궡?낅땲??`;
 };
 
 const CONTEXT_CATEGORIES = new Set<ContextCategory>([
@@ -96,20 +95,20 @@ const PERSONA_TYPES = new Set(['university_student', 'older_adult', 'custom']);
 
 function requiredText(value: unknown, label: string, max: number): string {
   const text = typeof value === 'string' ? value.trim() : '';
-  if (!text) throw new Error(`${label}을(를) 입력해 주세요.`);
-  if (text.length > max) throw new Error(`${label}은(는) ${max}자 이하여야 합니다.`);
+  if (!text) throw new Error(`${label}??瑜? ?낅젰??二쇱꽭??`);
+  if (text.length > max) throw new Error(`${label}?(?? ${max}???댄븯?ъ빞 ?⑸땲??`);
   return text;
 }
 
 function profileInput(body: unknown): CreateProfileRequest {
   const input = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
   const personaType = String(input.personaType || 'custom');
-  if (!PERSONA_TYPES.has(personaType)) throw new Error('지원하지 않는 프로필 유형입니다.');
+  if (!PERSONA_TYPES.has(personaType)) throw new Error('吏?먰븯吏 ?딅뒗 ?꾨줈???좏삎?낅땲??');
   return {
-    displayName: requiredText(input.displayName, '사용자 이름', 50),
+    displayName: requiredText(input.displayName, '?ъ슜???대쫫', 50),
     personaType: personaType as CreateProfileRequest['personaType'],
-    name: requiredText(input.name, '프로필 이름', 50),
-    icon: requiredText(input.icon || '✨', '아이콘', 12),
+    name: requiredText(input.name, '?꾨줈???대쫫', 50),
+    icon: requiredText(input.icon || '??, '?꾩씠肄?, 12),
     description: typeof input.description === 'string' ? input.description.trim().slice(0, 300) : '',
   };
 }
@@ -123,15 +122,15 @@ function contextInput(body: unknown): CreateContextRequest {
   const input = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const category = String(input.category || '');
   const privacyLevel = String(input.privacyLevel || '');
-  if (!CONTEXT_CATEGORIES.has(category as ContextCategory)) throw new Error('지원하지 않는 맥락 분류입니다.');
-  if (!PRIVACY_LEVELS.has(privacyLevel as PrivacyLevel)) throw new Error('지원하지 않는 민감도입니다.');
+  if (!CONTEXT_CATEGORIES.has(category as ContextCategory)) throw new Error('吏?먰븯吏 ?딅뒗 留λ씫 遺꾨쪟?낅땲??');
+  if (!PRIVACY_LEVELS.has(privacyLevel as PrivacyLevel)) throw new Error('吏?먰븯吏 ?딅뒗 誘쇨컧?꾩엯?덈떎.');
   const tags = Array.isArray(input.tags)
     ? input.tags.map(String).map((tag) => tag.trim()).filter(Boolean).slice(0, 10)
     : [];
   return {
-    title: requiredText(input.title, '카드 제목', 80),
+    title: requiredText(input.title, '移대뱶 ?쒕ぉ', 80),
     category: category as ContextCategory,
-    content: requiredText(input.content, '카드 내용', 2_000),
+    content: requiredText(input.content, '移대뱶 ?댁슜', 2_000),
     tags,
     isActive: input.isActive !== false,
     privacyLevel: privacyLevel as PrivacyLevel,
@@ -144,12 +143,12 @@ function makeLiveGenerate(client: GoogleGenAI): Generate {
     for (const model of CANDIDATE_MODELS) {
       try {
         const response = await client.models.generateContent({ model, contents: prompt });
-        return response.text || '답변을 생성하지 못했습니다.';
+        return response.text || '?듬????앹꽦?섏? 紐삵뻽?듬땲??';
       } catch (error) {
         lastError = error;
       }
     }
-    throw lastError instanceof Error ? lastError : new Error('모든 Gemini 모델 호출이 실패했습니다.');
+    throw lastError instanceof Error ? lastError : new Error('紐⑤뱺 Gemini 紐⑤뜽 ?몄텧???ㅽ뙣?덉뒿?덈떎.');
   };
 }
 
@@ -168,15 +167,15 @@ function parseJson<T>(text: string): T | null {
   }
 }
 
-/** 고성능 맥락 선별 결과. 카드 실제 내용과 질문 전체 의도를 함께 분석한다. */
+/** 怨좎꽦??留λ씫 ?좊퀎 寃곌낵. 移대뱶 ?ㅼ젣 ?댁슜怨?吏덈Ц ?꾩껜 ?섎룄瑜??④퍡 遺꾩꽍?쒕떎. */
 /**
- * Gemini 기반 semantic ranker 어댑터 (v20).
- * v19와의 차이:
- *  - recall 필터가 통과시킨 shortlist만 채점한다(전건 전송 X → 페이로드·비용·정확도 개선).
- *  - 2차 비평(별도 네트워크 왕복)을 제거하고, 단일 호출 프롬프트 안에서 스스로 검증하게 한다.
- *  - 정책 경계(안전망·과선별 상한·confidential 차단)는 selection/core가 집행하므로
- *    여기서는 '관련성/역할' 판정만 반환한다.
- * 실패·무효 출력이면 undefined → selectContexts가 결정론 폴백을 쓴다.
+ * Gemini 湲곕컲 semantic ranker ?대뙌??(v20).
+ * v19???李⑥씠:
+ *  - recall ?꾪꽣媛 ?듦낵?쒗궓 shortlist留?梨꾩젏?쒕떎(?꾧굔 ?꾩넚 X ???섏씠濡쒕뱶쨌鍮꾩슜쨌?뺥솗??媛쒖꽑).
+ *  - 2李?鍮꾪룊(蹂꾨룄 ?ㅽ듃?뚰겕 ?뺣났)???쒓굅?섍퀬, ?⑥씪 ?몄텧 ?꾨＼?꾪듃 ?덉뿉???ㅼ뒪濡?寃利앺븯寃??쒕떎.
+ *  - ?뺤콉 寃쎄퀎(?덉쟾留씲룰낵?좊퀎 ?곹븳쨌confidential 李⑤떒)??selection/core媛 吏묓뻾?섎?濡?
+ *    ?ш린?쒕뒗 '愿?⑥꽦/??븷' ?먯젙留?諛섑솚?쒕떎.
+ * ?ㅽ뙣쨌臾댄슚 異쒕젰?대㈃ undefined ??selectContexts媛 寃곗젙濡??대갚???대떎.
  */
 function makeGeminiRanker(
   generate: Generate,
@@ -193,36 +192,36 @@ function makeGeminiRanker(
       content: c.content,
       privacyLevel: c.privacyLevel,
     }));
-    const instruction = `당신은 개인화 AI의 고성능 Context Selection Engine이다.
-사용자 질문의 실제 의도·숨은 조건·필요한 답변 형식을 먼저 파악한 뒤, 아래 후보 카드를 서로 비교해 역할을 판정하라.
+    const instruction = `?뱀떊? 媛쒖씤??AI??怨좎꽦??Context Selection Engine?대떎.
+?ъ슜??吏덈Ц???ㅼ젣 ?섎룄쨌?⑥? 議곌굔쨌?꾩슂???듬? ?뺤떇??癒쇱? ?뚯븙???? ?꾨옒 ?꾨낫 移대뱶瑜??쒕줈 鍮꾧탳????븷???먯젙?섎씪.
 
-[사용자 질문]
+[?ъ슜??吏덈Ц]
 ${query}
 
-[후보 카드(이미 1차 관련성 필터를 통과함)]
+[?꾨낫 移대뱶(?대? 1李?愿?⑥꽦 ?꾪꽣瑜??듦낵??]
 ${JSON.stringify(cards, null, 2)}
 
-전문가 판정 절차:
-1. questionPlan을 먼저 작성한다: taskType, userGoal, requiredFactors, responsePlan.
-2. 분류명보다 content의 실제 의미와 질문에 대한 인과적 영향을 본다.
-3. 각 카드를 역할로 분류한다.
-   - must_use: 빠지면 답변이 틀리거나 실행 불가능해짐
-   - should_use: 답변의 선택·우선순위·난이도를 의미 있게 바꿈
-   - optional: 있으면 표현·세부 조정에 도움
-   - ignore: 이번 질문 결과를 거의 바꾸지 않음
-4. 저장된 category는 힌트일 뿐 최종 강제력이 아니다. 특히 hard_limit/constraint라는 이유만으로 must_use로 올리지 마라.
-5. 제약 카드는 현재 질문의 결정·행동이 그 조건을 위반할 가능성이 있을 때만 must_use다.
-   - 관련 없음: ignore
-   - 관련 가능하지만 실제 결정을 바꾸지 않음: optional
-   - 선택지 제거·안전·실행 가능성에 직접 영향: must_use
-   시간·예산·교통도 이번 질문의 실행 범위를 실제로 제한할 때만 must_use로 본다.
-6. objective는 성공 기준을, capability는 난이도를, resource는 실행 가능성을 결정할 때 쓴다.
-7. preference는 선택 기준 또는 출력 형식을 바꿀 때만 추천한다.
-8. relevanceScore=답변 변화량(0~100), confidence=판정 확신도(0~100).
-9. reason은 왜 관련 있는지, impact는 답변에서 무엇이 달라지는지 각각 구체적으로.
-10. 복합 질문은 하위 목적을 모두 커버하되, 같은 단어가 있다는 이유만으로 과잉 추천하지 말라.
-11. 출력 전에 스스로 재검토하라: (a) 답변을 실제로 바꿀 카드를 누락했는가? (b) 화제성만으로 과잉 추천한 카드는 없는가? (c) constraint·preference·objective의 상호작용을 놓쳤는가? 최종본만 출력한다.
-12. 필요한 정보가 실제로 빠졌을 때만 suggestedAdditions에 최대 3개.`;
+?꾨Ц媛 ?먯젙 ?덉감:
+1. questionPlan??癒쇱? ?묒꽦?쒕떎: taskType, userGoal, requiredFactors, responsePlan.
+2. 遺꾨쪟紐낅낫??content???ㅼ젣 ?섎?? 吏덈Ц??????멸낵???곹뼢??蹂몃떎.
+3. 媛?移대뱶瑜???븷濡?遺꾨쪟?쒕떎.
+   - must_use: 鍮좎?硫??듬????由ш굅???ㅽ뻾 遺덇??ν빐吏?
+   - should_use: ?듬????좏깮쨌?곗꽑?쒖쐞쨌?쒖씠?꾨? ?섎? ?덇쾶 諛붽퓞
+   - optional: ?덉쑝硫??쒗쁽쨌?몃? 議곗젙???꾩?
+   - ignore: ?대쾲 吏덈Ц 寃곌낵瑜?嫄곗쓽 諛붽씀吏 ?딆쓬
+4. ??λ맂 category???뚰듃??肉?理쒖쥌 媛뺤젣?μ씠 ?꾨땲?? ?뱁엳 hard_limit/constraint?쇰뒗 ?댁쑀留뚯쑝濡?must_use濡??щ━吏 留덈씪.
+5. ?쒖빟 移대뱶???꾩옱 吏덈Ц??寃곗젙쨌?됰룞??洹?議곌굔???꾨컲??媛?μ꽦???덉쓣 ?뚮쭔 must_use??
+   - 愿???놁쓬: ignore
+   - 愿??媛?ν븯吏留??ㅼ젣 寃곗젙??諛붽씀吏 ?딆쓬: optional
+   - ?좏깮吏 ?쒓굅쨌?덉쟾쨌?ㅽ뻾 媛?μ꽦??吏곸젒 ?곹뼢: must_use
+   ?쒓컙쨌?덉궛쨌援먰넻???대쾲 吏덈Ц???ㅽ뻾 踰붿쐞瑜??ㅼ젣濡??쒗븳???뚮쭔 must_use濡?蹂몃떎.
+6. objective???깃났 湲곗??? capability???쒖씠?꾨?, resource???ㅽ뻾 媛?μ꽦??寃곗젙?????대떎.
+7. preference???좏깮 湲곗? ?먮뒗 異쒕젰 ?뺤떇??諛붽? ?뚮쭔 異붿쿇?쒕떎.
+8. relevanceScore=?듬? 蹂?붾웾(0~100), confidence=?먯젙 ?뺤떊??0~100).
+9. reason? ??愿???덈뒗吏, impact???듬??먯꽌 臾댁뾿???щ씪吏?붿? 媛곴컖 援ъ껜?곸쑝濡?
+10. 蹂듯빀 吏덈Ц? ?섏쐞 紐⑹쟻??紐⑤몢 而ㅻ쾭?섎릺, 媛숈? ?⑥뼱媛 ?덈떎???댁쑀留뚯쑝濡?怨쇱엵 異붿쿇?섏? 留먮씪.
+11. 異쒕젰 ?꾩뿉 ?ㅼ뒪濡??ш??좏븯?? (a) ?듬????ㅼ젣濡?諛붽? 移대뱶瑜??꾨씫?덈뒗媛? (b) ?붿젣?깅쭔?쇰줈 怨쇱엵 異붿쿇??移대뱶???녿뒗媛? (c) constraint쨌preference쨌objective???곹샇?묒슜???볦낀?붽?? 理쒖쥌蹂몃쭔 異쒕젰?쒕떎.
+12. ?꾩슂???뺣낫媛 ?ㅼ젣濡?鍮좎죱???뚮쭔 suggestedAdditions??理쒕? 3媛?`;
 
     type Row = {
       id: string; recommended?: boolean; relevanceScore: number; reason?: string;
@@ -251,7 +250,7 @@ ${JSON.stringify(cards, null, 2)}
         };
       });
       return {
-        detectedIntent: result.detectedIntent?.trim() || '질문의 목적과 필요한 개인 맥락을 분석했습니다.',
+        detectedIntent: result.detectedIntent?.trim() || '吏덈Ц??紐⑹쟻怨??꾩슂??媛쒖씤 留λ씫??遺꾩꽍?덉뒿?덈떎.',
         questionPlan: {
           taskType: result.questionPlan?.taskType?.trim() || 'general_advice',
           userGoal: result.questionPlan?.userGoal?.trim() || query,
@@ -298,13 +297,13 @@ ${JSON.stringify(cards, null, 2)}
         const out = (await generateStructured(instruction, schema)) as StructuredResult | undefined;
         if (out) { const r = collect(out); if (r) return r; }
       } catch {
-        // 자유 형식 JSON 폴백으로 진행
+        // ?먯쑀 ?뺤떇 JSON ?대갚?쇰줈 吏꾪뻾
       }
     }
 
     try {
       const raw = await generate(
-        instruction + '\n\nJSON만 출력하라. detectedIntent, questionPlan, evaluations, suggestedAdditions 필드를 반드시 포함하라.',
+        instruction + '\n\nJSON留?異쒕젰?섎씪. detectedIntent, questionPlan, evaluations, suggestedAdditions ?꾨뱶瑜?諛섎뱶???ы븿?섎씪.',
       );
       const parsed = parseJson<StructuredResult>(raw);
       return parsed ? collect(parsed) : undefined;
@@ -315,8 +314,8 @@ ${JSON.stringify(cards, null, 2)}
 }
 
 /**
- * LLM 기억 추출. 질문에서 새 개인 맥락을 뽑는다. 실패·무효 출력이면 빈 배열 →
- * core가 규칙 추출기로 폴백. LLM 결과와 규칙 결과는 core에서 라벨 기준 병합된다.
+ * LLM 湲곗뼲 異붿텧. 吏덈Ц?먯꽌 ??媛쒖씤 留λ씫??戮묐뒗?? ?ㅽ뙣쨌臾댄슚 異쒕젰?대㈃ 鍮?諛곗뿴 ??
+ * core媛 洹쒖튃 異붿텧湲곕줈 ?대갚. LLM 寃곌낵? 洹쒖튃 寃곌낵??core?먯꽌 ?쇰꺼 湲곗? 蹂묓빀?쒕떎.
  */
 async function extractMemoriesLLM(
   query: string,
@@ -325,12 +324,12 @@ async function extractMemoriesLLM(
 ): Promise<ExtractedMemory[]> {
   if (!live) return [];
   const prompt =
-    '아래 질문에서 사용자가 명확히 밝힌 "장기간 다시 사용할 개인 사실"만 뽑아 JSON 배열로 출력하라. ' +
-    '오늘·이번 한 번의 예산/상황, 단순 질문, "쉽게 설명해줘" 같은 이번 답변 명령, 추측한 정보는 반드시 제외하라. ' +
-    '사용자의 배경·지속적 취향·장기 목표·반복 일정·건강/이동 제약처럼 다음 질문에서도 유효한 사실만 허용한다. 형식: ' +
+    '?꾨옒 吏덈Ц?먯꽌 ?ъ슜?먭? 紐낇솗??諛앺엺 "?κ린媛??ㅼ떆 ?ъ슜??媛쒖씤 ?ъ떎"留?戮묒븘 JSON 諛곗뿴濡?異쒕젰?섎씪. ' +
+    '?ㅻ뒛쨌?대쾲 ??踰덉쓽 ?덉궛/?곹솴, ?⑥닚 吏덈Ц, "?쎄쾶 ?ㅻ챸?댁쨾" 媛숈? ?대쾲 ?듬? 紐낅졊, 異붿륫???뺣낫??諛섎뱶???쒖쇅?섎씪. ' +
+    '?ъ슜?먯쓽 諛곌꼍쨌吏?띿쟻 痍⑦뼢쨌?κ린 紐⑺몴쨌諛섎났 ?쇱젙쨌嫄닿컯/?대룞 ?쒖빟泥섎읆 ?ㅼ쓬 吏덈Ц?먯꽌???좏슚???ъ떎留??덉슜?쒕떎. ?뺤떇: ' +
     '[{"label":str,"title":str,"category":"identity|capability|objective|preference|hard_limit|soft_limit|resource|routine|relationship|current_state|project",' +
     '"content":str,"privacyLevel":"normal|sensitive|confidential","semanticGroup":str}]. ' +
-    '건강·이동제약 등은 sensitive. 없으면 []. 설명 금지.\n\n질문: ' +
+    '嫄닿컯쨌?대룞?쒖빟 ?깆? sensitive. ?놁쑝硫?[]. ?ㅻ챸 湲덉?.\n\n吏덈Ц: ' +
     query;
   try {
     const parsed = parseJson<ExtractedMemory[]>(await generate(prompt));
@@ -357,49 +356,49 @@ async function extractMemoriesLLM(
 export function promptFor(query: string, contexts: ContextItem[], tempNote?: string) {
   const approved = contexts
     .map((context) => `- [${context.category}] ${context.title}: ${context.content}`)
-    .concat(tempNote ? [`- [이번 질문 전용] ${tempNote}`] : [])
+    .concat(tempNote ? [`- [?대쾲 吏덈Ц ?꾩슜] ${tempNote}`] : [])
     .join('\n');
   return approved
-    ? `[사용자 질문]\n${query}\n\n[사용자가 승인한 맥락]\n${approved}\n\n` +
-        `[답변 설계 지시]\n` +
-        `1. 첫 문단에서 질문에 직접 답하세요. 불필요한 서론은 쓰지 마세요.\n` +
-        `2. hard_limit/constraint는 위반하지 말고, objective/goal을 성공 기준으로 삼으세요.\n` +
-        `3. capability와 resource에 맞춰 난이도와 실행 단계를 조정하세요.\n` +
-        `4. 선택지가 있으면 추천 순위, 선택 이유, 주의점을 비교하세요.\n` +
-        `5. 정보가 부족하면 추측하지 말고 답변 가능한 범위와 확인할 질문을 분리하세요.\n` +
-        `6. 출력은 질문에 맞게 '추천/결론 → 이유 → 실행 단계 → 주의점' 순으로 구성하세요.\n` +
-        `7. 끝에 '✨ 반영된 맥락' 섹션을 만들고, 실제 답변을 어떻게 바꾼 맥락만 '맥락 → 변화' 형식으로 적으세요.\n` +
-        `8. 승인 목록 밖의 개인정보는 추측하지 마세요.`
-    : `[사용자 질문]\n${query}\n\n개인 맥락이 없습니다. 일반적이고 중립적인 안내로, 질문에 직접 답하고 필요한 가정은 명시하며 실행 가능한 다음 단계를 제시하세요.`;
+    ? `[?ъ슜??吏덈Ц]\n${query}\n\n[?ъ슜?먭? ?뱀씤??留λ씫]\n${approved}\n\n` +
+        `[?듬? ?ㅺ퀎 吏??\n` +
+        `1. 泥?臾몃떒?먯꽌 吏덈Ц??吏곸젒 ?듯븯?몄슂. 遺덊븘?뷀븳 ?쒕줎? ?곗? 留덉꽭??\n` +
+        `2. hard_limit/constraint???꾨컲?섏? 留먭퀬, objective/goal???깃났 湲곗??쇰줈 ?쇱쑝?몄슂.\n` +
+        `3. capability? resource??留욎떠 ?쒖씠?꾩? ?ㅽ뻾 ?④퀎瑜?議곗젙?섏꽭??\n` +
+        `4. ?좏깮吏媛 ?덉쑝硫?異붿쿇 ?쒖쐞, ?좏깮 ?댁쑀, 二쇱쓽?먯쓣 鍮꾧탳?섏꽭??\n` +
+        `5. ?뺣낫媛 遺議깊븯硫?異붿륫?섏? 留먭퀬 ?듬? 媛?ν븳 踰붿쐞? ?뺤씤??吏덈Ц??遺꾨━?섏꽭??\n` +
+        `6. 異쒕젰? 吏덈Ц??留욊쾶 '異붿쿇/寃곕줎 ???댁쑀 ???ㅽ뻾 ?④퀎 ??二쇱쓽?? ?쒖쑝濡?援ъ꽦?섏꽭??\n` +
+        `7. ?앹뿉 '??諛섏쁺??留λ씫' ?뱀뀡??留뚮뱾怨? ?ㅼ젣 ?듬????대뼸寃?諛붽씔 留λ씫留?'留λ씫 ??蹂?? ?뺤떇?쇰줈 ?곸쑝?몄슂.\n` +
+        `8. ?뱀씤 紐⑸줉 諛뽰쓽 媛쒖씤?뺣낫??異붿륫?섏? 留덉꽭??`
+    : `[?ъ슜??吏덈Ц]\n${query}\n\n媛쒖씤 留λ씫???놁뒿?덈떎. ?쇰컲?곸씠怨?以묐┰?곸씤 ?덈궡濡? 吏덈Ц??吏곸젒 ?듯븯怨??꾩슂??媛?뺤? 紐낆떆?섎ŉ ?ㅽ뻾 媛?ν븳 ?ㅼ쓬 ?④퀎瑜??쒖떆?섏꽭??`;
 }
 
 export interface AppDeps {
   generate?: Generate;
   live?: boolean;
-  store?: IProposalStore;   // 테스트/특수 배선용. 없으면 요청별로 자동 선택.
+  store?: IProposalStore;   // ?뚯뒪???뱀닔 諛곗꽑?? ?놁쑝硫??붿껌蹂꾨줈 ?먮룞 ?좏깮.
 }
 
 export function createApp(deps: AppDeps = {}) {
-  // 기본은 실 Gemini(키 있으면)·오프라인(없으면). 테스트는 offlineGenerate를 주입해
-  // GEMINI_API_KEY 유무와 무관하게 네트워크를 절대 타지 않는다(결정적 테스트).
+  // 湲곕낯? ??Gemini(???덉쑝硫?쨌?ㅽ봽?쇱씤(?놁쑝硫?. ?뚯뒪?몃뒗 offlineGenerate瑜?二쇱엯??
+  // GEMINI_API_KEY ?좊Т? 臾닿??섍쾶 ?ㅽ듃?뚰겕瑜??덈? ?吏 ?딅뒗??寃곗젙???뚯뒪??.
   const generate: Generate = deps.generate ?? (ai ? makeLiveGenerate(ai) : offlineGenerate);
   const live = deps.live ?? Boolean(ai && !deps.generate);
-  // structured output은 실 Gemini + 테스트가 generate를 주입하지 않은 경우에만.
+  // structured output? ??Gemini + ?뚯뒪?멸? generate瑜?二쇱엯?섏? ?딆? 寃쎌슦?먮쭔.
   const generateStructured: GenerateStructured | undefined =
     ai && !deps.generate ? makeLiveGenerateStructured(ai) : undefined;
   const semanticRanker = makeGeminiRanker(generate, live, generateStructured);
 
-  // store는 앱 레벨이 아니라 요청(사용자)별로 만든다.
-  // - 데모/로컬(user.local): 인메모리 ProposalStore (재시작 시 사라져도 무방한 데모)
-  // - Supabase: 그 사용자 토큰이 실린 client로 SupabaseProposalStore → RLS 격리 + 영속
-  // 테스트는 deps.store를 주입해 인메모리 단일 인스턴스를 재사용한다(상태 공유 필요).
+  // store?????덈꺼???꾨땲???붿껌(?ъ슜??蹂꾨줈 留뚮뱺??
+  // - ?곕え/濡쒖뺄(user.local): ?몃찓紐⑤━ ProposalStore (?ъ떆?????щ씪?몃룄 臾대갑???곕え)
+  // - Supabase: 洹??ъ슜???좏겙???ㅻ┛ client濡?SupabaseProposalStore ??RLS 寃⑸━ + ?곸냽
+  // ?뚯뒪?몃뒗 deps.store瑜?二쇱엯???몃찓紐⑤━ ?⑥씪 ?몄뒪?댁뒪瑜??ъ궗?⑺븳???곹깭 怨듭쑀 ?꾩슂).
   const storeFor = (user: Awaited<ReturnType<typeof authenticate>>): IProposalStore => {
-    if (deps.store) return deps.store;                 // 테스트 주입(공유 인스턴스)
+    if (deps.store) return deps.store;                 // ?뚯뒪??二쇱엯(怨듭쑀 ?몄뒪?댁뒪)
     if (user.local || !supabaseConfigured) return sharedMemoryStore;
     return new SupabaseProposalStore(userClient(user.token));
   };
-  // 데모 모드에서 요청 간 proposal이 유지되도록 앱당 하나의 인메모리 store를 공유한다.
-  // (Supabase 모드에선 쓰이지 않음 — 그쪽은 DB가 상태를 들고 있으므로 요청별 store로 충분)
+  // ?곕え 紐⑤뱶?먯꽌 ?붿껌 媛?proposal???좎??섎룄濡??깅떦 ?섎굹???몃찓紐⑤━ store瑜?怨듭쑀?쒕떎.
+  // (Supabase 紐⑤뱶?먯꽑 ?곗씠吏 ?딆쓬 ??洹몄そ? DB媛 ?곹깭瑜??ㅺ퀬 ?덉쑝誘濡??붿껌蹂?store濡?異⑸텇)
   const sharedMemoryStore = new ProposalStore();
 
   const app = express();
@@ -410,12 +409,12 @@ export function createApp(deps: AppDeps = {}) {
         .map((value) => value.trim())
         .filter(Boolean);
       if (!origin || env.nodeEnv !== 'production' || configured.includes(origin)) return callback(null, true);
-      return callback(new Error('허용되지 않은 Origin입니다.'));
+      return callback(new Error('?덉슜?섏? ?딆? Origin?낅땲??'));
     },
   }));
   app.use(express.json({ limit: '1mb' }));
 
-  // 키 값은 절대 반환하지 않고 연결 준비 상태만 제공한다.
+  // ??媛믪? ?덈? 諛섑솚?섏? ?딄퀬 ?곌껐 以鍮??곹깭留??쒓났?쒕떎.
   app.get('/api/health/config', (_req, res) => {
     const missing = assertServerEnv();
     return res.status(missing.length ? 503 : 200).json({
@@ -437,7 +436,7 @@ export function createApp(deps: AppDeps = {}) {
         mode: supabaseConfigured ? 'supabase' : 'local-demo',
       });
     } catch (error) {
-      return res.status(401).json({ error: error instanceof Error ? error.message : '로그인이 필요합니다.' });
+      return res.status(401).json({ error: error instanceof Error ? error.message : '濡쒓렇?몄씠 ?꾩슂?⑸땲??' });
     }
   });
 
@@ -456,7 +455,7 @@ export function createApp(deps: AppDeps = {}) {
         context: await saveContext(user, req.params.profileId, context),
       });
     } catch (error) {
-      return res.status(400).json({ error: error instanceof Error ? error.message : '저장에 실패했습니다.' });
+      return res.status(400).json({ error: error instanceof Error ? error.message : '??μ뿉 ?ㅽ뙣?덉뒿?덈떎.' });
     }
   });
 
@@ -465,7 +464,7 @@ export function createApp(deps: AppDeps = {}) {
       const user = await authenticate(req.headers.authorization);
       return res.status(201).json({ profile: await createProfile(user, profileInput(req.body)) });
     } catch (error) {
-      return res.status(400).json({ error: error instanceof Error ? error.message : '프로필 생성에 실패했습니다.' });
+      return res.status(400).json({ error: error instanceof Error ? error.message : '?꾨줈???앹꽦???ㅽ뙣?덉뒿?덈떎.' });
     }
   });
 
@@ -475,7 +474,7 @@ export function createApp(deps: AppDeps = {}) {
       const input = profileInput(req.body) as UpdateProfileRequest;
       return res.json({ profile: await updateProfile(user, req.params.profileId, input) });
     } catch (error) {
-      return res.status(400).json({ error: error instanceof Error ? error.message : '프로필 수정에 실패했습니다.' });
+      return res.status(400).json({ error: error instanceof Error ? error.message : '?꾨줈???섏젙???ㅽ뙣?덉뒿?덈떎.' });
     }
   });
 
@@ -492,7 +491,7 @@ export function createApp(deps: AppDeps = {}) {
       };
       return res.json({ context: await saveContext(user, req.params.profileId, context) });
     } catch (error) {
-      return res.status(400).json({ error: error instanceof Error ? error.message : '카드 수정에 실패했습니다.' });
+      return res.status(400).json({ error: error instanceof Error ? error.message : '移대뱶 ?섏젙???ㅽ뙣?덉뒿?덈떎.' });
     }
   });
 
@@ -502,7 +501,7 @@ export function createApp(deps: AppDeps = {}) {
       await deleteContext(user, req.params.profileId, req.params.contextId);
       return res.status(204).end();
     } catch (error) {
-      return res.status(400).json({ error: error instanceof Error ? error.message : '삭제에 실패했습니다.' });
+      return res.status(400).json({ error: error instanceof Error ? error.message : '??젣???ㅽ뙣?덉뒿?덈떎.' });
     }
   });
 
@@ -510,30 +509,30 @@ export function createApp(deps: AppDeps = {}) {
     try {
       await authenticate(req.headers.authorization);
       const text = String(req.body?.text || '').trim();
-      if (!text) return res.status(400).json({ error: '분류할 내용을 입력해 주세요.' });
+      if (!text) return res.status(400).json({ error: '遺꾨쪟???댁슜???낅젰??二쇱꽭??' });
 
       const categories = ['identity', 'capability', 'objective', 'preference', 'hard_limit', 'soft_limit', 'resource', 'routine', 'relationship', 'current_state', 'project'];
-      const prompt = `사용자가 입력한 개인 정보를 개인화 AI가 재사용하기 좋은 원자 단위 사실로 분해하라.
+      const prompt = `?ъ슜?먭? ?낅젰??媛쒖씤 ?뺣낫瑜?媛쒖씤??AI媛 ?ъ궗?⑺븯湲?醫뗭? ?먯옄 ?⑥쐞 ?ъ떎濡?遺꾪빐?섎씪.
 
-[입력]
+[?낅젰]
 ${text}
 
-[분류 기준]
-identity=이름·직업·거주 지역·주거 및 생활 환경처럼 비교적 오래 유지되는 기본 배경,
-capability=현재 능력·경험, objective=이루고 싶은 결과,
-preference=선택 기준 또는 답변 형식 선호, hard_limit=반드시 위반하면 안 되는 조건,
-soft_limit=절충 가능한 조건, resource=시간·예산·도구·교통 등 가용 자원,
-routine=반복 일정·습관, relationship=동행자·관계, current_state=현재만 유효한 상태,
-project=진행 중인 작업.
+[遺꾨쪟 湲곗?]
+identity=?대쫫쨌吏곸뾽쨌嫄곗＜ 吏??룹＜嫄?諛??앺솢 ?섍꼍泥섎읆 鍮꾧탳???ㅻ옒 ?좎??섎뒗 湲곕낯 諛곌꼍,
+capability=?꾩옱 ?λ젰쨌寃쏀뿕, objective=?대（怨??띠? 寃곌낵,
+preference=?좏깮 湲곗? ?먮뒗 ?듬? ?뺤떇 ?좏샇, hard_limit=諛섎뱶???꾨컲?섎㈃ ???섎뒗 議곌굔,
+soft_limit=?덉땐 媛?ν븳 議곌굔, resource=?쒓컙쨌?덉궛쨌?꾧뎄쨌援먰넻 ??媛???먯썝,
+routine=諛섎났 ?쇱젙쨌?듦?, relationship=?숉뻾?먃룰?怨? current_state=?꾩옱留??좏슚???곹깭,
+project=吏꾪뻾 以묒씤 ?묒뾽.
 
-규칙:
-- 한 카드에는 하나의 사실만 넣는다.
-- 제목은 12자 안팎, content는 원뜻을 보존한 명확한 문장으로 쓴다.
-- 단순히 부정적이라는 이유로 hard_limit에 넣지 말고, 답변이 반드시 지켜야 할 때만 사용한다.
-- 시간·예산·교통은 resource, 반복 일정은 routine으로 분리한다.
-- 시·구·동 수준의 거주 지역과 '대중교통이 편리함', '공원이 가까움' 같은 생활 환경은 identity로 분류한다.
-- 번지·동호수 같은 상세 주소, 건강·장애·가족 정보는 sensitive, 그 외는 보통 normal이다.
-- 최대 8개. 같은 사실은 합친다.`;
+洹쒖튃:
+- ??移대뱶?먮뒗 ?섎굹???ъ떎留??ｋ뒗??
+- ?쒕ぉ? 12???덊뙉, content???먮쑜??蹂댁〈??紐낇솗??臾몄옣?쇰줈 ?대떎.
+- ?⑥닚??遺?뺤쟻?대씪???댁쑀濡?hard_limit???ｌ? 留먭퀬, ?듬???諛섎뱶??吏耳쒖빞 ???뚮쭔 ?ъ슜?쒕떎.
+- ?쒓컙쨌?덉궛쨌援먰넻? resource, 諛섎났 ?쇱젙? routine?쇰줈 遺꾨━?쒕떎.
+- ?쑣룰뎄쨌???섏???嫄곗＜ 吏??낵 '?以묎탳?듭씠 ?몃━??, '怨듭썝??媛源뚯?' 媛숈? ?앺솢 ?섍꼍? identity濡?遺꾨쪟?쒕떎.
+- 踰덉?쨌?숉샇??媛숈? ?곸꽭 二쇱냼, 嫄닿컯쨌?μ븷쨌媛議??뺣낫??sensitive, 洹??몃뒗 蹂댄넻 normal?대떎.
+- 理쒕? 8媛? 媛숈? ?ъ떎? ?⑹튇??`;
       const schema = {
         type: 'object',
         properties: {
@@ -561,41 +560,41 @@ project=진행 중인 작업.
         .filter((draft) => categories.includes(String(draft.category)) && String(draft.content || '').trim())
         .slice(0, 8)
         .map((draft) => ({
-          title: String(draft.title || '나의 정보').trim(),
+          title: String(draft.title || '?섏쓽 ?뺣낫').trim(),
           category: String(draft.category),
           content: String(draft.content).trim(),
           privacyLevel: ['normal', 'sensitive', 'confidential'].includes(String(draft.privacyLevel)) ? String(draft.privacyLevel) : 'normal',
-          rationale: String(draft.rationale || '입력 문장의 의미에 따라 분류했습니다.'),
+          rationale: String(draft.rationale || '?낅젰 臾몄옣???섎????곕씪 遺꾨쪟?덉뒿?덈떎.'),
         }));
       if (drafts.length) return res.json({ drafts });
-      return res.json({ drafts: [{ title: '나의 정보', category: 'identity', content: text, privacyLevel: 'normal', rationale: 'AI 분류를 사용할 수 없어 기본 정보로 저장합니다.' }] });
+      return res.json({ drafts: [{ title: '?섏쓽 ?뺣낫', category: 'identity', content: text, privacyLevel: 'normal', rationale: 'AI 遺꾨쪟瑜??ъ슜?????놁뼱 湲곕낯 ?뺣낫濡???ν빀?덈떎.' }] });
     } catch (error) {
-      return res.status(400).json({ error: error instanceof Error ? error.message : '정보 분류에 실패했습니다.' });
+      return res.status(400).json({ error: error instanceof Error ? error.message : '?뺣낫 遺꾨쪟???ㅽ뙣?덉뒿?덈떎.' });
     }
   });
 
-  // 질문과 모든 맥락의 실제 내용을 비교해 Proposal을 만든다.
+  // 吏덈Ц怨?紐⑤뱺 留λ씫???ㅼ젣 ?댁슜??鍮꾧탳??Proposal??留뚮뱺??
   app.post('/api/proposals' , async (req, res) => {
     const { query, profileId } = req.body as {
       query?: string;
       profileId?: string;
     };
     if (!query?.trim() || !profileId) {
-      return res.status(400).json({ error: '질문과 프로필이 필요합니다.' });
+      return res.status(400).json({ error: '吏덈Ц怨??꾨줈?꾩씠 ?꾩슂?⑸땲??' });
     }
     if (query.trim().length > 4_000) {
-      return res.status(400).json({ error: '질문은 4,000자 이하여야 합니다.' });
+      return res.status(400).json({ error: '吏덈Ц? 4,000???댄븯?ъ빞 ?⑸땲??' });
     }
     try {
       const user = await authenticate(req.headers.authorization);
       const profiles = await loadProfiles(user);
       const profile = profiles.find((item) => item.id === profileId);
-      if (!profile) return res.status(404).json({ error: '이 계정의 프로필을 찾을 수 없습니다.' });
-      // 선별 LLM이 질문과 허용된 카드 내용을 비교한다. confidential은 사전 제외되고,
-      // 최종 답변 LLM에는 이후 사용자가 승인한 카드만 전달된다.
+      if (!profile) return res.status(404).json({ error: '??怨꾩젙???꾨줈?꾩쓣 李얠쓣 ???놁뒿?덈떎.' });
+      // ?좊퀎 LLM??吏덈Ц怨??덉슜??移대뱶 ?댁슜??鍮꾧탳?쒕떎. confidential? ?ъ쟾 ?쒖쇅?섍퀬,
+      // 理쒖쥌 ?듬? LLM?먮뒗 ?댄썑 ?ъ슜?먭? ?뱀씤??移대뱶留??꾨떖?쒕떎.
       const selection = await selectContexts(query.trim(), profile.contexts, semanticRanker);
       const store = storeFor(user);
-      // store.create가 저장까지 담당한다(Supabase면 DB insert, 인메모리면 맵에 보관).
+      // store.create媛 ??κ퉴吏 ?대떦?쒕떎(Supabase硫?DB insert, ?몃찓紐⑤━硫?留듭뿉 蹂닿?).
       const proposal = await store.create(
         user.id,
         profileId,
@@ -612,12 +611,12 @@ project=진행 중인 작업.
         detectedIntent: selection.detectedIntent,
         questionPlan: selection.questionPlan,
         suggestedAdditions: selection.suggestedAdditions,
-        diagnostics: selection.diagnostics, // vault/shortlist 크기, 안전망·과선별 개입 횟수
+        diagnostics: selection.diagnostics, // vault/shortlist ?ш린, ?덉쟾留씲룰낵?좊퀎 媛쒖엯 ?잛닔
         summaryReasoning:
-          `질문 구조와 실제 카드 내용을 비교해 ${selection.diagnostics.shortlistCount}개 이하의 후보를 판정했습니다. 최종 답변에는 사용자가 승인한 카드만 사용됩니다.`,
+          `吏덈Ц 援ъ“? ?ㅼ젣 移대뱶 ?댁슜??鍮꾧탳??${selection.diagnostics.shortlistCount}媛??댄븯???꾨낫瑜??먯젙?덉뒿?덈떎. 理쒖쥌 ?듬??먮뒗 ?ъ슜?먭? ?뱀씤??移대뱶留??ъ슜?⑸땲??`,
       });
     } catch (error) {
-      return res.status(401).json({ error: error instanceof Error ? error.message : '로그인이 필요합니다.' });
+      return res.status(401).json({ error: error instanceof Error ? error.message : '濡쒓렇?몄씠 ?꾩슂?⑸땲??' });
     }
   });
 
@@ -637,26 +636,26 @@ project=진행 중인 작업.
     const approvedIds = approvedContextIds ?? [];
     const tempNote = temporaryNote;
     if (!Array.isArray(approvedIds) || approvedIds.some((id) => typeof id !== 'string')) {
-      return res.status(400).json({ error: 'approvedContextIds는 문자열 ID 배열이어야 합니다.' });
+      return res.status(400).json({ error: 'approvedContextIds??臾몄옄??ID 諛곗뿴?댁뼱???⑸땲??' });
     }
     if (typeof tempNote === 'string' && tempNote.length > 2_000) {
-      return res.status(400).json({ error: '이번 질문 메모는 2,000자 이하여야 합니다.' });
+      return res.status(400).json({ error: '?대쾲 吏덈Ц 硫붾え??2,000???댄븯?ъ빞 ?⑸땲??' });
     }
     try {
       const user = await authenticate(req.headers.authorization);
       const store = storeFor(user);
       const pending = await store.inspect(proposalId, user.id);
-      // 일반 비교 호출에는 개인 맥락이 전혀 필요하지 않으며, 실패하면
-      // Proposal은 승인 전 상태로 남아 같은 Preview에서 재시도할 수 있다.
+      // ?쇰컲 鍮꾧탳 ?몄텧?먮뒗 媛쒖씤 留λ씫???꾪? ?꾩슂?섏? ?딆쑝硫? ?ㅽ뙣?섎㈃
+      // Proposal? ?뱀씤 ???곹깭濡??⑥븘 媛숈? Preview?먯꽌 ?ъ떆?꾪븷 ???덈떎.
       const rawAnswer = includeRawComparison
         ? await generate(promptFor(pending.query, []))
         : undefined;
       const { proposal, approved, snapshotHash } = await store.approve(
         proposalId,
         user.id,
-        bypassAll ? [] : approvedIds,   // bypassAll이면 아무 맥락도 승인하지 않는다
+        bypassAll ? [] : approvedIds,   // bypassAll?대㈃ ?꾨Т 留λ씫???뱀씤?섏? ?딅뒗??
       );
-      // bypassAll: 사용자가 "모든 개인 맥락 끄고 일반 답변"을 명시적으로 선택한 경우.
+      // bypassAll: ?ъ슜?먭? "紐⑤뱺 媛쒖씤 留λ씫 ?꾧퀬 ?쇰컲 ?듬?"??紐낆떆?곸쑝濡??좏깮??寃쎌슦.
       const draft = await generate(
         promptFor(proposal.query, bypassAll ? [] : approved, bypassAll ? undefined : tempNote?.trim()),
       );
@@ -687,8 +686,8 @@ project=진행 중인 작업.
         profileId: proposal.profileId,
         usedContexts: approved,
       };
-      // store가 proposal 상태·스냅샷·기억후보를 이미 영속한다.
-      // 감사 로그(audit_logs)만 별도로 저장한다. 인메모리(데모)는 내부에서 no-op.
+      // store媛 proposal ?곹깭쨌?ㅻ깄?력룰린?듯썑蹂대? ?대? ?곸냽?쒕떎.
+      // 媛먯궗 濡쒓렇(audit_logs)留?蹂꾨룄濡???ν븳?? ?몃찓紐⑤━(?곕え)???대??먯꽌 no-op.
       await persistAuditLog(user, {
         proposalId,
         profileId: proposal.profileId,
@@ -710,11 +709,11 @@ project=진행 중인 작업.
         const user = await authenticate(req.headers.authorization);
         await storeFor(user).fail(proposalId, user.id);
       } catch {
-        /* 인증 실패 등은 무시 — 원 오류를 그대로 반환 */
+        /* ?몄쬆 ?ㅽ뙣 ?깆? 臾댁떆 ?????ㅻ쪟瑜?洹몃?濡?諛섑솚 */
       }
       const status = (error as { status?: number }).status === 409 ? 409 : 400;
       return res.status(status).json({
-        error: error instanceof Error ? error.message : '답변 생성에 실패했습니다.',
+        error: error instanceof Error ? error.message : '?듬? ?앹꽦???ㅽ뙣?덉뒿?덈떎.',
       });
     }
   });
@@ -725,24 +724,24 @@ project=진행 중인 작업.
         action?: 'save' | 'ignore';
       };
       if (action !== 'save' && action !== 'ignore') {
-        return res.status(400).json({ error: 'save 또는 ignore가 필요합니다.' });
+        return res.status(400).json({ error: 'save ?먮뒗 ignore媛 ?꾩슂?⑸땲??' });
       }
       const user = await authenticate(req.headers.authorization);
       const store = storeFor(user);
       const result = await store.resolveMemory(req.params.candidateId, user.id, action);
-      // store.resolveMemory가 후보 상태를 이미 갱신한다(Supabase면 DB, 인메모리면 맵).
-      // save일 때 생성된 카드만 저장한다.
+      // store.resolveMemory媛 ?꾨낫 ?곹깭瑜??대? 媛깆떊?쒕떎(Supabase硫?DB, ?몃찓紐⑤━硫?留?.
+      // save?????앹꽦??移대뱶留???ν븳??
       if (result.context) await saveContext(user, result.candidate.profileId, result.context);
       return res.json({ ...result, profileId: result.candidate.profileId });
     } catch (error) {
       return res.status(403).json({
-        error: error instanceof Error ? error.message : '기억 후보 처리에 실패했습니다.',
+        error: error instanceof Error ? error.message : '湲곗뼲 ?꾨낫 泥섎━???ㅽ뙣?덉뒿?덈떎.',
       });
     }
   });
 
-  // 감사 로그는 /api/bootstrap이 Supabase에서 로드한다. 과거의 인메모리 /api/audit는
-  // 프론트가 호출하지 않는 죽은 경로였고 서버 재시작 시 소실돼 제거했다.
+  // 媛먯궗 濡쒓렇??/api/bootstrap??Supabase?먯꽌 濡쒕뱶?쒕떎. 怨쇨굅???몃찓紐⑤━ /api/audit??
+  // ?꾨줎?멸? ?몄텧?섏? ?딅뒗 二쎌? 寃쎈줈?怨??쒕쾭 ?ъ떆?????뚯떎???쒓굅?덈떎.
 
   return app;
 }
@@ -750,7 +749,9 @@ project=진행 중인 작업.
 export async function startServer() {
   const app = createApp();
   if (env.nodeEnv !== 'production') {
-    const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
+    const { createServer: createViteServer } = await import('vite');
+
+  const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
   } else {
     app.use(express.static('dist'));
@@ -760,15 +761,16 @@ export async function startServer() {
     console.log(`[Context Bridge] http://0.0.0.0:${PORT}`);
     const missing = assertServerEnv();
     if (missing.length) {
-      console.warn(`[환경설정] Supabase 서버 연결 미완료: ${missing.join(', ')}`);
-      console.warn('[환경설정] 로컬에서는 프로젝트 루트의 .env.local을 확인하세요.');
+      console.warn(`[?섍꼍?ㅼ젙] Supabase ?쒕쾭 ?곌껐 誘몄셿猷? ${missing.join(', ')}`);
+      console.warn('[?섍꼍?ㅼ젙] 濡쒖뺄?먯꽌???꾨줈?앺듃 猷⑦듃??.env.local???뺤씤?섏꽭??');
     } else {
-      console.log('[환경설정] Supabase 서버 연결 준비 완료');
+      console.log('[?섍꼍?ㅼ젙] Supabase ?쒕쾭 ?곌껐 以鍮??꾨즺');
     }
-    console.log(`[환경설정] AI 응답 모드: ${serverEnvStatus.aiConfigured ? 'Gemini' : '오프라인 폴백'}`);
+    console.log(`[?섍꼍?ㅼ젙] AI ?묐떟 紐⑤뱶: ${serverEnvStatus.aiConfigured ? 'Gemini' : '?ㅽ봽?쇱씤 ?대갚'}`);
   });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await startServer();
 }
+
