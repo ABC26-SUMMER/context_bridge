@@ -1,91 +1,124 @@
-import { AlertCircle, LogIn, RefreshCw, UserRoundPlus } from "lucide-react";
-import type { DemoAccount } from "../types";
-import { Pill } from "./Pill";
+import { useState } from "react";
+import { AlertCircle, ArrowRight, LoaderCircle, LogIn, UserPlus } from "lucide-react";
 
 type LoginScreenProps = {
-  accounts: DemoAccount[];
   loading: boolean;
   error?: string;
-  emptyProfile?: boolean;
-  onLogin: (accountId: string) => void;
-  onRetry?: () => void;
+  notice?: string;
+  onSignIn: (email: string, password: string) => void;
+  onSignUp: (email: string, password: string) => void;
 };
 
-export function LoginScreen({ accounts, loading, error, emptyProfile, onLogin, onRetry }: LoginScreenProps) {
+export function LoginScreen({ loading, error, notice, onSignIn, onSignUp }: LoginScreenProps) {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!email.trim() || !password) return;
+    if (mode === "signin") onSignIn(email, password);
+    else onSignUp(email, password);
+  };
+
   return (
     <main className="min-h-screen bg-[#f8f7f2] p-7 max-sm:p-4">
-      <section className="mx-auto grid min-h-[calc(100vh-56px)] max-w-5xl content-center gap-6">
+      <section className="mx-auto grid min-h-[calc(100vh-56px)] max-w-5xl grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)] items-center gap-12 max-md:grid-cols-1 max-md:content-center">
         <div>
-          <div className="text-xs font-black uppercase text-bridge">Context Bridge Demo Login</div>
+          <div className="text-xs font-black uppercase text-bridge">Context Bridge</div>
           <h1 className="mt-3 max-w-3xl text-5xl font-black leading-tight max-sm:text-3xl">
-            로그인한 계정의 프로필만 사용합니다
+            내 정보를 내가 선택하는 개인화 AI
           </h1>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
-            해커톤 시연용 데모 로그인입니다. 각 계정은 Mock API의 개인 프로필과 연결되고, API는 로그인 계정의 프로필만 조회해 질문에 필요한 정보만 선별합니다.
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-muted">
+            짧은 질문을 보내도 내 프로필에서 필요한 맥락만 골라 보여줍니다. 승인한 정보만 답변 생성에 사용됩니다.
           </p>
+          <div className="mt-8 grid max-w-xl gap-3 border-l-4 border-accent pl-5 text-sm leading-7 text-muted">
+            <strong className="text-ink">공용 Supabase 계정으로 로그인합니다.</strong>
+            <span>로그인 상태와 프로필 데이터는 새로고침 후에도 유지되며, RLS로 본인의 데이터만 조회합니다.</span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
-          {accounts.map((account) => (
+        <div className="border border-line bg-white p-6 shadow-[0_20px_55px_rgba(18,40,36,0.08)] max-sm:p-5">
+          <div className="grid grid-cols-2 border border-line bg-[#f3f2ed] p-1">
             <button
-              key={account.id}
-              className="grid min-h-52 content-between border border-line bg-white p-5 text-left hover:border-bridge focus:border-bridge focus:outline-none focus:ring-4 focus:ring-bridge/10"
+              className={`min-h-10 text-sm font-black transition ${mode === "signin" ? "bg-white text-ink shadow-sm" : "text-muted"}`}
               type="button"
-              disabled={loading}
-              onClick={() => onLogin(account.id)}
+              onClick={() => setMode("signin")}
             >
-              <span className="grid gap-3">
-                <span className="flex items-center justify-between gap-3">
-                  <strong className="text-2xl font-black">{account.displayName}</strong>
-                  <Pill>{account.source === "supabase" ? "Supabase 계정" : "Demo 계정"}</Pill>
-                </span>
-                <span className="text-sm font-bold text-bridge-dark">{account.email}</span>
-                <span className="leading-7 text-muted">{account.description}</span>
-              </span>
-              <span className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 bg-bridge px-4 font-black text-white">
-                <LogIn size={18} />
-                이 계정으로 로그인
-              </span>
+              로그인
             </button>
-          ))}
-        </div>
-
-        {loading && <div className="border border-line bg-white p-4 text-muted">계정 정보를 불러오는 중입니다.</div>}
-
-        {emptyProfile && (
-          <div className="flex items-start gap-3 border border-line bg-white p-5" role="status">
-            <UserRoundPlus className="mt-0.5 shrink-0 text-bridge" size={20} />
-            <div>
-              <strong className="block">아직 등록된 프로필이 없습니다</strong>
-              <span className="mt-1 block text-sm leading-6 text-muted">
-                프로필 생성 기능이 연결되면 이 화면에서 새 프로필을 시작할 수 있습니다.
-              </span>
-            </div>
+            <button
+              className={`min-h-10 text-sm font-black transition ${mode === "signup" ? "bg-white text-ink shadow-sm" : "text-muted"}`}
+              type="button"
+              onClick={() => setMode("signup")}
+            >
+              회원가입
+            </button>
           </div>
-        )}
 
-        {error && (
-          <div className="flex flex-wrap items-center justify-between gap-4 border border-red-200 bg-red-50 p-4 text-red-900" role="alert">
-            <div className="flex min-w-0 items-start gap-3">
-              <AlertCircle className="mt-0.5 shrink-0" size={19} />
-              <div>
-                <strong className="block">프로필을 불러오지 못했습니다</strong>
-                <span className="mt-1 block text-sm leading-6">{error}</span>
-              </div>
-            </div>
-            {onRetry && (
-              <button
-                className="inline-flex min-h-10 items-center gap-2 border border-red-300 bg-white px-4 text-sm font-black hover:bg-red-100"
-                type="button"
+          <div className="mt-6">
+            <h2 className="text-2xl font-black">{mode === "signin" ? "다시 만나서 반가워요" : "새 계정 만들기"}</h2>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              {mode === "signin" ? "이메일과 비밀번호를 입력해 주세요." : "가입 후 이메일 인증이 필요할 수 있습니다."}
+            </p>
+          </div>
+
+          <form className="mt-6 grid gap-4" onSubmit={submit}>
+            <label className="grid gap-2 text-sm font-black text-ink">
+              이메일
+              <input
+                className="min-h-12 border border-line bg-white px-3 font-normal outline-none transition focus:border-bridge focus:ring-4 focus:ring-bridge/10"
+                type="email"
+                autoComplete="email"
+                value={email}
+                placeholder="name@example.com"
                 disabled={loading}
-                onClick={onRetry}
-              >
-                <RefreshCw size={16} />
-                다시 시도
-              </button>
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </label>
+            <label className="grid gap-2 text-sm font-black text-ink">
+              비밀번호
+              <input
+                className="min-h-12 border border-line bg-white px-3 font-normal outline-none transition focus:border-bridge focus:ring-4 focus:ring-bridge/10"
+                type="password"
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                value={password}
+                minLength={mode === "signup" ? 6 : undefined}
+                disabled={loading}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </label>
+
+            {error && (
+              <div className="flex items-start gap-2 border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-900" role="alert">
+                <AlertCircle className="mt-0.5 shrink-0" size={17} />
+                <span>{error}</span>
+              </div>
             )}
-          </div>
-        )}
+
+            {notice && (
+              <div className="border border-[#bcd9d1] bg-[#f1f9f6] p-3 text-sm leading-6 text-bridge-dark" role="status">
+                {notice}
+              </div>
+            )}
+
+            <button
+              className="mt-1 inline-flex min-h-12 items-center justify-center gap-2 bg-bridge px-4 font-black text-white transition hover:bg-bridge-dark disabled:cursor-not-allowed disabled:opacity-50"
+              type="submit"
+              disabled={loading || !email.trim() || !password}
+            >
+              {loading ? (
+                <LoaderCircle className="animate-spin" size={18} />
+              ) : mode === "signin" ? (
+                <LogIn size={18} />
+              ) : (
+                <UserPlus size={18} />
+              )}
+              {loading ? "처리 중" : mode === "signin" ? "로그인" : "회원가입"}
+              {!loading && <ArrowRight size={17} />}
+            </button>
+          </form>
+        </div>
       </section>
     </main>
   );

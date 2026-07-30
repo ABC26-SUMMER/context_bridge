@@ -18,7 +18,7 @@ type SidebarProps = {
 };
 
 const navItems = [
-  { id: "main", label: "메인 데모", icon: GitBranch },
+  { id: "main", label: "AI 대화", icon: GitBranch },
   { id: "profile", label: "프로필 관리", icon: Database },
   { id: "history", label: "사용 기록", icon: Clock3 },
 ];

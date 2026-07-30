@@ -32,7 +32,7 @@ export function getAnalyzedQuality(): QualityState {
 
 export function getGeneratedQuality(question: string, approved: SelectedContext[]): QualityState {
   const hasApproved = approved.length > 0;
-  const hasSensitive = approved.some((field) => field.sensitivity === "sensitive");
+  const hasSensitive = approved.some((field) => field.sensitivity !== "normal");
 
   return {
     before: [

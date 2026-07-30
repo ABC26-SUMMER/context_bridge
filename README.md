@@ -1,23 +1,22 @@
 # Context Bridge
 
-Context Bridge는 사용자의 정보·취향·목표·제약조건을 개인 프로필로 관리하고, 짧은 질문의 의도를 분석해 필요한 맥락만 규칙 기반으로 선별한 뒤, 사용자 승인 후 LLM에 전달할 고급 프롬프트를 만드는 사용자 통제형 AI 서비스입니다.
+Context Bridge는 사용자의 정보, 선호, 목표, 제약 조건을 프로필과 컨텍스트 카드로 관리하고, 질문에 필요한 맥락만 사용자의 승인 아래 AI에 전달하는 사용자 통제형 서비스입니다. 고성능 AI 활용이 어려운 비전공자와 디지털 취약계층도 자신의 상황에 맞는 답변을 얻도록 돕는 것이 목표입니다.
 
-## MVP 흐름
+## 현재 구현 범위
 
-1. 데모 로그인 계정 선택
-2. 로그인 계정의 `account_id`로 개인 프로필 조회
-3. 백엔드 규칙 엔진에서 질문 의도 분석
-4. 필요한 정보, 민감 가능 정보, 제외 정보를 UI에 표시
-5. 사용자가 승인한 정보만 고급 프롬프트에 포함
+- 이메일 회원가입, 로그인, 로그아웃과 새로고침 후 세션 유지
+- 로그인 사용자별 프로필 조회, 생성, 수정
+- 컨텍스트 카드 조회, 생성, 수정, 삭제
+- 질문 기록 조회
+- 기존 ChatGPT형 채팅 UI와 Mock AI 질문, 맥락 제안, 답변 생성 연결
+- 로딩, 빈 데이터, 오류, 재시도 상태
+- 실제 API 실패 시 Mock 데이터로 자동 대체하지 않음
 
-## 대표 계정
-
-- 전이현: 대학생, 공기업 전산직 준비
-- 김영자: 고령 사용자, 큰 글씨와 쉬운 설명 선호
+인증, 프로필, 컨텍스트 카드는 팀 공용 Supabase에 연결합니다. AI 관련 기능은 실제 백엔드가 완성될 때까지 전달받은 `contracts/`와 `mock-server.mjs`를 사용합니다.
 
 ## 환경변수
 
-프로젝트 루트에 `.env.local`을 만들고 아래 값을 넣습니다. 개발 환경에서는 전달받은 Mock API 주소를 사용하고, 배포 환경에서는 실제 API 주소를 설정합니다. 실제 값이 들어간 `.env.local`은 GitHub에 올리지 않습니다.
+프로젝트 루트의 `.env.local`에 실제 값을 작성합니다. 이 파일은 Git에 커밋하지 않습니다.
 
 ```env
 VITE_SUPABASE_URL=
@@ -25,31 +24,29 @@ VITE_SUPABASE_PUBLISHABLE_KEY=
 VITE_API_BASE_URL=http://localhost:4000
 ```
 
-AI API 키와 Supabase `service_role` 키는 프론트엔드에 넣지 않고 백엔드 API에서만 사용합니다.
+저장소에는 값이 비어 있는 `.env.example`만 유지합니다. `VITE_SUPABASE_ANON_KEY`, Supabase `service_role`/secret key, AI API 키는 프론트엔드에 추가하지 않습니다.
 
-테이블과 데모 데이터는 `supabase_schema.sql`을 기준으로 만들 수 있습니다. 이 SQL은 `demo_accounts`와 `profiles`를 만들고, `profiles.account_id`로 계정과 프로필을 연결합니다.
+## 로컬 실행
 
-## Mock API와 프론트 실행
-
-터미널 1:
+터미널 1에서 Mock API를 실행합니다.
 
 ```bash
 node mock-server.mjs
 ```
 
-터미널 2:
+터미널 2에서 프론트엔드를 실행합니다.
 
 ```bash
 npm install
 npm run dev
 ```
 
-데모 계정은 Mock API 계약의 `demo-student`, `demo-senior` 토큰으로 `/api/bootstrap`을 호출합니다. 질문 전송은 `/api/proposals`, 사용자 승인 후 답변 생성은 `/api/proposals/:proposalId/generate`를 사용합니다.
+브라우저에서 `http://127.0.0.1:5173`을 엽니다. 질문 전송은 `/api/proposals`, 승인 후 답변 생성은 `/api/proposals/:proposalId/generate` 계약을 사용합니다.
 
-실제 API 호출에 실패하면 Mock 데이터나 프론트 규칙으로 자동 대체하지 않고 오류와 재시도 화면을 표시합니다.
+## 검증
 
-## 작업 인수인계
+```bash
+npm run build
+```
 
-새 Codex 세션에서 이어 작업할 때는 `docs/FRONTEND_HANDOFF.md`를 먼저 읽고 세션별 작업 범위를 나눠서 진행합니다.
-
-초기 단일 파일 스케치는 `prototype.html`에 보존되어 있습니다.
+`supabase_schema.sql`은 초기 데모용 스키마이며 현재 팀 공용 Supabase의 실제 테이블 구조와 다릅니다. 공용 프로젝트에는 이 파일을 실행하거나 프론트에서 DB 컬럼을 임의로 변경하지 않습니다. 확인된 최신 상태와 다음 작업은 `docs/FRONTEND_HANDOFF.md`를 참고합니다.

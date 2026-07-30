@@ -1,4 +1,6 @@
-export type Sensitivity = "normal" | "sensitive";
+import type { ContextCategory } from "../contracts/types";
+
+export type Sensitivity = "normal" | "sensitive" | "confidential";
 export type UiMode = "easy" | "standard" | "detail";
 
 export type DemoAccount = {
@@ -20,6 +22,9 @@ export type ProfileField = {
   tags: string[];
   contextId?: string;
   valueVisible?: boolean;
+  category?: ContextCategory;
+  semanticGroup?: string;
+  version?: number;
 };
 
 export type UserProfile = {
@@ -28,6 +33,9 @@ export type UserProfile = {
   name: string;
   group: string;
   personaType: string;
+  profileName?: string;
+  icon?: string;
+  description?: string;
   source?: "supabase" | "demo";
   uiMode: UiMode;
   defaultQuestion: string;

@@ -1,19 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import type { AnswerResponse, MemoryCandidate, SelectionMode } from "../contracts/types";
 import { ChatWorkspace } from "./components/ChatWorkspace";
 import { ContextLog } from "./components/ContextLog";
 import { LoginScreen } from "./components/LoginScreen";
 import { ProfileManager } from "./components/ProfileManager";
+import { ProfileOnboarding } from "./components/ProfileOnboarding";
 import { Sidebar } from "./components/Sidebar";
-import { demoAccounts, demoProfiles } from "./data/profiles";
-import { createProposal, generateAnswer, getBootstrap, resolveMemory } from "./services/contractApi";
+import {
+  getCurrentSession,
+  onSessionChange,
+  signInWithPassword,
+  signOut,
+  signUpWithPassword,
+} from "./services/authService";
+import { createProposal, generateAnswer, resolveMemory } from "./services/contractApi";
 import {
   getInitialApprovals,
   mapAuditLog,
-  mapContractProfile,
   mapProposalToAnalysis,
 } from "./services/contractMappers";
-import { loadAccounts } from "./services/profileRepository";
+import {
+  createContextCard,
+  createProfile,
+  deleteContextCard,
+  loadProfilesForUser,
+  loadQuestionHistory,
+  updateContextCard,
+  updateProfile,
+  type ContextCardInput,
+  type ProfileInput,
+} from "./services/profileRepository";
 import { getAnalyzedQuality, getGeneratedQuality, getIdleQuality } from "./services/qualityAnalyzer";
 import type {
   ContextAnalysis,
@@ -29,18 +46,19 @@ type RetryStage = "proposal" | "generate" | null;
 
 export default function App() {
   const [activePage, setActivePage] = useState("main");
-  const [accounts, setAccounts] = useState<DemoAccount[]>(demoAccounts);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const [apiToken, setApiToken] = useState("");
-  const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(null);
-  const [loadingAccounts, setLoadingAccounts] = useState(true);
-  const [loadingProfile, setLoadingProfile] = useState(false);
-  const [loginError, setLoginError] = useState("");
-  const [emptyProfile, setEmptyProfile] = useState(false);
-  const [lastLoginAccountId, setLastLoginAccountId] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authNotice, setAuthNotice] = useState("");
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [currentProfileId, setCurrentProfileId] = useState("");
+  const [dataLoading, setDataLoading] = useState(false);
+  const [dataSaving, setDataSaving] = useState(false);
+  const [dataError, setDataError] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [question, setQuestion] = useState(demoProfiles[0].defaultQuestion);
+  const [question, setQuestion] = useState("내 상황에 맞는 계획을 세워 줘");
   const [intent, setIntent] = useState<DetectedIntent | null>(null);
   const [selected, setSelected] = useState<SelectedContext[]>([]);
   const [sensitive, setSensitive] = useState<SelectedContext[]>([]);
@@ -61,15 +79,63 @@ export default function App() {
   const [records, setRecords] = useState<InteractionRecord[]>([]);
 
   useEffect(() => {
-    loadAccounts()
-      .then(setAccounts)
-      .finally(() => setLoadingAccounts(false));
+    let active = true;
+
+    getCurrentSession()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) setAuthError(error.message);
+        setSession(data.session);
+        setAuthReady(true);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setAuthError(getErrorMessage(error));
+        setAuthReady(true);
+      });
+
+    const { data } = onSessionChange((_event, nextSession) => {
+      if (!active) return;
+      setSession(nextSession);
+      setAuthReady(true);
+
+      if (!nextSession) {
+        setProfiles([]);
+        setCurrentProfileId("");
+        setRecords([]);
+        setActivePage("main");
+      }
+    });
+
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
   }, []);
 
-  const currentAccount = useMemo(
-    () => accounts.find((account) => account.id === selectedAccountId) || null,
-    [accounts, selectedAccountId],
+  useEffect(() => {
+    if (!session) return;
+    void refreshUserData();
+  }, [session?.user.id]);
+
+  const currentProfile = useMemo(
+    () => profiles.find((profile) => profile.id === currentProfileId) || profiles[0] || null,
+    [profiles, currentProfileId],
   );
+
+  const currentAccount = useMemo<DemoAccount | null>(() => {
+    if (!session || !currentProfile) return null;
+
+    return {
+      id: session.user.id,
+      email: session.user.email || "",
+      displayName: currentProfile.name,
+      personaType: currentProfile.personaType,
+      description: currentProfile.group,
+      profileId: currentProfile.id,
+      source: "supabase",
+    };
+  }, [session, currentProfile]);
 
   const approvalPool = [...selected, ...sensitive];
   const approved = approvalPool.filter((field) => approvals[field.key]);
@@ -87,46 +153,152 @@ export default function App() {
         ? getAnalyzedQuality()
         : getIdleQuality();
 
-  const login = async (accountId: string) => {
-    const account = accounts.find((item) => item.id === accountId) || demoAccounts[0];
-    const token = account.personaType === "older_adult" ? "demo-senior" : "demo-student";
-
-    setLoadingProfile(true);
-    setLoginError("");
-    setEmptyProfile(false);
-    setLastLoginAccountId(accountId);
+  const refreshUserData = async (preferredProfileId?: string) => {
+    setDataLoading(true);
+    setDataError("");
 
     try {
-      const bootstrap = await getBootstrap(token);
-      const contractProfile = bootstrap.profiles[0];
+      const nextProfiles = await loadProfilesForUser();
+      const nextId =
+        preferredProfileId && nextProfiles.some((profile) => profile.id === preferredProfileId)
+          ? preferredProfileId
+          : currentProfileId && nextProfiles.some((profile) => profile.id === currentProfileId)
+            ? currentProfileId
+            : nextProfiles[0]?.id || "";
+      const nextProfile = nextProfiles.find((profile) => profile.id === nextId) || nextProfiles[0];
 
-      if (!contractProfile) {
-        setEmptyProfile(true);
-        return;
+      setProfiles(nextProfiles);
+      setCurrentProfileId(nextId);
+
+      if (nextProfile) {
+        resetAnalysis(nextProfile.defaultQuestion);
+        const history = await loadQuestionHistory(nextProfile.name);
+        setRecords(history);
+      } else {
+        setRecords([]);
       }
-
-      const profile = mapContractProfile(contractProfile, account.id);
-      setApiToken(token);
-      setSelectedAccountId(account.id);
-      setCurrentProfile(profile);
-      setRecords(bootstrap.auditLogs.map((log) => mapAuditLog(log, profile.name)));
-      resetAnalysis(profile.defaultQuestion);
     } catch (error) {
-      setLoginError(getErrorMessage(error));
+      setDataError(getErrorMessage(error));
     } finally {
-      setLoadingProfile(false);
+      setDataLoading(false);
     }
   };
 
-  const logout = () => {
-    setSelectedAccountId(null);
-    setApiToken("");
-    setCurrentProfile(null);
-    setLoginError("");
-    setEmptyProfile(false);
-    setLastLoginAccountId(null);
-    resetAnalysis(demoProfiles[0].defaultQuestion);
-    setActivePage("main");
+  const handleSignIn = async (email: string, password: string) => {
+    setAuthLoading(true);
+    setAuthError("");
+    setAuthNotice("");
+
+    try {
+      await signInWithPassword(email, password);
+    } catch (error) {
+      setAuthError(getErrorMessage(error));
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignUp = async (email: string, password: string) => {
+    setAuthLoading(true);
+    setAuthError("");
+    setAuthNotice("");
+
+    try {
+      const { session: newSession } = await signUpWithPassword(email, password);
+      setAuthNotice(
+        newSession
+          ? "회원가입이 완료되었습니다. 첫 프로필을 만들어 주세요."
+          : "가입 확인 메일을 보냈습니다. 이메일 인증 후 로그인해 주세요.",
+      );
+    } catch (error) {
+      setAuthError(getErrorMessage(error));
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    setAuthError("");
+    try {
+      await signOut();
+      resetAnalysis();
+    } catch (error) {
+      setDataError(getErrorMessage(error));
+    }
+  };
+
+  const handleCreateProfile = async (input: ProfileInput) => {
+    if (!session) return;
+    setDataSaving(true);
+    setDataError("");
+
+    try {
+      await createProfile(session.user.id, input);
+      await refreshUserData();
+    } catch (error) {
+      setDataError(getErrorMessage(error));
+    } finally {
+      setDataSaving(false);
+    }
+  };
+
+  const handleUpdateProfile = async (input: ProfileInput) => {
+    if (!currentProfile) return false;
+    return runDataMutation(async () => {
+      await updateProfile(currentProfile.id, input);
+      await refreshUserData(currentProfile.id);
+    });
+  };
+
+  const handleCreateCard = async (input: ContextCardInput) => {
+    if (!session || !currentProfile) return false;
+    return runDataMutation(async () => {
+      await createContextCard(session.user.id, currentProfile.id, input);
+      await refreshUserData(currentProfile.id);
+    });
+  };
+
+  const handleUpdateCard = async (cardId: string, input: ContextCardInput) => {
+    if (!currentProfile) return false;
+    return runDataMutation(async () => {
+      await updateContextCard(cardId, input);
+      await refreshUserData(currentProfile.id);
+    });
+  };
+
+  const handleDeleteCard = async (cardId: string) => {
+    if (!currentProfile) return false;
+    return runDataMutation(async () => {
+      await deleteContextCard(cardId);
+      await refreshUserData(currentProfile.id);
+    });
+  };
+
+  const runDataMutation = async (mutation: () => Promise<void>) => {
+    setDataSaving(true);
+    setDataError("");
+    try {
+      await mutation();
+      return true;
+    } catch (error) {
+      setDataError(getErrorMessage(error));
+      return false;
+    } finally {
+      setDataSaving(false);
+    }
+  };
+
+  const changeProfile = async (profileId: string) => {
+    const profile = profiles.find((item) => item.id === profileId);
+    setCurrentProfileId(profileId);
+    resetAnalysis(profile?.defaultQuestion);
+    if (profile) {
+      try {
+        setRecords(await loadQuestionHistory(profile.name));
+      } catch (error) {
+        setDataError(getErrorMessage(error));
+      }
+    }
   };
 
   const resetAnalysis = (nextQuestion = currentProfile?.defaultQuestion || question) => {
@@ -151,7 +323,7 @@ export default function App() {
   };
 
   const analyze = async () => {
-    if (!currentProfile || !apiToken) return;
+    if (!currentProfile || !session) return;
     const normalizedQuestion = question.trim() || currentProfile.defaultQuestion;
 
     setAnalyzing(true);
@@ -169,7 +341,7 @@ export default function App() {
     setMemoryCandidates([]);
 
     try {
-      const proposal = await createProposal(apiToken, {
+      const proposal = await createProposal(session.access_token, {
         profileId: currentProfile.id,
         query: normalizedQuestion,
       });
@@ -208,14 +380,14 @@ export default function App() {
   };
 
   const generate = async () => {
-    if (!proposalId || !apiToken || !currentProfile || generating) return;
+    if (!proposalId || !session || !currentProfile || generating) return;
 
     setGenerating(true);
     setApiError("");
     setRetryStage(null);
 
     try {
-      const answer = await generateAnswer(apiToken, proposalId, {
+      const answer = await generateAnswer(session.access_token, proposalId, {
         approvedIds: approved.map((field) => field.contextId || field.key),
         includeRawComparison: true,
       });
@@ -240,33 +412,15 @@ export default function App() {
   };
 
   const resolveMemoryCandidate = async (candidateId: string, action: "save" | "ignore") => {
-    if (!apiToken || memoryResolvingId) return;
+    if (!session || memoryResolvingId) return;
 
     setMemoryResolvingId(candidateId);
     setApiError("");
 
     try {
-      const response = await resolveMemory(apiToken, candidateId, { action });
+      await resolveMemory(session.access_token, candidateId, { action });
       setMemoryActions((current) => ({ ...current, [candidateId]: action }));
-
-      if (response.context && currentProfile) {
-        setCurrentProfile({
-          ...currentProfile,
-          fields: [
-            ...currentProfile.fields,
-            {
-              key: response.context.id,
-              contextId: response.context.id,
-              label: response.context.title,
-              value: response.context.content,
-              sensitivity: response.context.privacyLevel === "normal" ? "normal" : "sensitive",
-              enabled: response.context.isActive,
-              tags: response.context.tags,
-              valueVisible: true,
-            },
-          ],
-        });
-      }
+      if (action === "save" && currentProfile) await refreshUserData(currentProfile.id);
     } catch (error) {
       setApiError(getErrorMessage(error));
       setRetryStage(null);
@@ -276,22 +430,34 @@ export default function App() {
   };
 
   const retry = () => {
-    if (retryStage === "proposal") {
-      void analyze();
-    } else if (retryStage === "generate") {
-      void generate();
-    }
+    if (retryStage === "proposal") void analyze();
+    else if (retryStage === "generate") void generate();
   };
 
-  if (!currentAccount || !currentProfile) {
+  if (!authReady || (session && dataLoading && profiles.length === 0)) {
+    return <FullPageLoading />;
+  }
+
+  if (!session) {
     return (
       <LoginScreen
-        accounts={accounts}
-        loading={loadingAccounts || loadingProfile}
-        error={loginError}
-        emptyProfile={emptyProfile}
-        onLogin={login}
-        onRetry={lastLoginAccountId ? () => login(lastLoginAccountId) : undefined}
+        loading={authLoading}
+        error={authError}
+        notice={authNotice}
+        onSignIn={handleSignIn}
+        onSignUp={handleSignUp}
+      />
+    );
+  }
+
+  if (!currentProfile || !currentAccount) {
+    return (
+      <ProfileOnboarding
+        email={session.user.email || ""}
+        loading={dataSaving}
+        error={dataError}
+        onCreate={handleCreateProfile}
+        onLogout={() => void logout()}
       />
     );
   }
@@ -311,7 +477,7 @@ export default function App() {
         sensitive={sensitive}
         approvals={approvals}
         onToggleApproval={toggleApproval}
-        onLogout={logout}
+        onLogout={() => void logout()}
       />
       <main className={`${easy ? "text-lg" : ""}`}>
         {activePage === "main" && (
@@ -349,7 +515,17 @@ export default function App() {
 
         {activePage === "profile" && (
           <div className="p-7 max-sm:p-4">
-            <ProfileManager profiles={[currentProfile]} profileId={currentProfile.id} onProfileChange={() => undefined} />
+            <ProfileManager
+              profiles={profiles}
+              profileId={currentProfile.id}
+              saving={dataSaving}
+              error={dataError}
+              onProfileChange={(profileId) => void changeProfile(profileId)}
+              onUpdateProfile={handleUpdateProfile}
+              onCreateCard={handleCreateCard}
+              onUpdateCard={handleUpdateCard}
+              onDeleteCard={handleDeleteCard}
+            />
           </div>
         )}
 
@@ -360,6 +536,17 @@ export default function App() {
         )}
       </main>
     </div>
+  );
+}
+
+function FullPageLoading() {
+  return (
+    <main className="grid min-h-screen place-items-center bg-[#f8f7f2] p-6" aria-live="polite">
+      <div className="grid justify-items-center gap-4 text-center">
+        <div className="grid h-12 w-12 animate-pulse place-items-center bg-[#122824] text-sm font-black text-[#f8d7ad]">CB</div>
+        <strong>계정과 프로필을 불러오는 중입니다</strong>
+      </div>
+    </main>
   );
 }
 

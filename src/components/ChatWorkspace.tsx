@@ -120,7 +120,7 @@ export function ChatWorkspace({
           <AssistantMessage
             eyebrow="프로필 연결됨"
             title={`${profile.name}님의 질문을 준비했어요`}
-            body={`${account.description} 프로필을 기준으로 질문에 필요한 정보만 골라 보여줍니다. 왼쪽 사이드바에서 사용할 맥락을 직접 승인할 수 있습니다.`}
+            body={`${account.description}을 바탕으로 질문에 필요한 정보만 골라 보여줍니다. 왼쪽 사이드바에서 사용할 맥락을 직접 승인할 수 있습니다.`}
           />
 
           <UserMessage>{question || profile.defaultQuestion}</UserMessage>
