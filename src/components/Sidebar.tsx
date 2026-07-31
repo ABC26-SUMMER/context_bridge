@@ -58,7 +58,7 @@ export function Sidebar({
       </nav>
 
       {account && profile && (
-        <div className="mt-6 grid gap-3">
+        <div className="mt-6">
           <section className="border border-white/15 bg-white/10 p-4">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="grid h-9 w-9 place-items-center border border-white/20 bg-white/10 text-white/80">
@@ -78,13 +78,6 @@ export function Sidebar({
             <strong className="block text-base text-white">{account.displayName}</strong>
             <span className="mt-1 block text-sm leading-6 text-white/65">{account.description}</span>
             <span className="mt-2 block truncate text-xs text-white/45">{account.email}</span>
-          </section>
-
-          <section className="border border-white/15 bg-white/10 p-4">
-            <strong className="text-sm text-white">{profile.profileName || profile.name}</strong>
-            <p className="mt-2 text-xs leading-5 text-white/60">
-              질문에 사용할 정보는 대화 화면에서 한 번만 확인합니다.
-            </p>
           </section>
         </div>
       )}
