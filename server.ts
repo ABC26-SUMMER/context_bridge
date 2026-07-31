@@ -496,6 +496,7 @@ ${JSON.stringify(payload, null, 2)}
       const confidence = Math.max(0, Math.min(100, decision.confidence));
       // 확실한 DROP만 제거한다. 애매한 후보는 사용자가 최종 승인하도록 남긴다.
       if (decision.verdict === 'DROP' && confidence >= 75) return [];
+      if (decision.verdict === 'DROP' && confidence < 75) return [candidate];
       // 분류 수정도 충분히 확실할 때만 반영하며 내용·라벨·민감도는 절대 수정하지 않는다.
       // 건강·이동 제약은 검증 모델이 preference 등으로 오분류해도 안전 분류를 유지한다.
       const safetyCritical = candidate.privacyLevel === 'sensitive' &&
@@ -523,13 +524,23 @@ ${JSON.stringify(payload, null, 2)}
   }
 }
 
-export function promptFor(query: string, contexts: ContextItem[], tempNote?: string) {
+export function promptFor(
+  query: string,
+  contexts: ContextItem[],
+  tempNote?: string,
+  conversationHistory: Array<{ role: string; content: string }> = [],
+) {
+  const history = conversationHistory
+    .filter((item) => item && typeof item.content === 'string' && item.content.trim())
+    .map((item) => `[${item.role === 'assistant' ? '답변' : '사용자'}] ${item.content.trim()}`)
+    .join('\n');
+  const historyBlock = history ? `[현재 대화의 이전 내용]\n${history}\n\n` : '';
   const approved = contexts
     .map((context) => `- [${context.category}] ${context.title}: ${context.content}`)
     .concat(tempNote ? [`- [이번 질문 전용] ${tempNote}`] : [])
     .join('\n');
   return approved
-    ? `[사용자 질문]\n${query}\n\n[사용자가 승인한 맥락]\n${approved}\n\n` +
+    ? `${historyBlock}[사용자 질문]\n${query}\n\n[사용자가 승인한 맥락]\n${approved}\n\n` +
         `[답변 설계 지시]\n` +
         `1. 첫 문단에서 질문에 직접 답하세요. 불필요한 서론은 쓰지 마세요.\n` +
         `2. hard_limit/constraint는 위반하지 말고, objective/goal을 성공 기준으로 삼으세요.\n` +
@@ -539,7 +550,7 @@ export function promptFor(query: string, contexts: ContextItem[], tempNote?: str
         `6. 출력은 질문에 맞게 '추천/결론 → 이유 → 실행 단계 → 주의점' 순으로 구성하세요.\n` +
         `7. 끝에 '✨ 반영된 맥락' 섹션을 만들고, 실제 답변을 어떻게 바꾼 맥락만 '맥락 → 변화' 형식으로 적으세요.\n` +
         `8. 승인 목록 밖의 개인정보는 추측하지 마세요.`
-    : `[사용자 질문]\n${query}\n\n개인 맥락이 없습니다. 일반적이고 중립적인 안내로, 질문에 직접 답하고 필요한 가정은 명시하며 실행 가능한 다음 단계를 제시하세요.`;
+    : `${historyBlock}[사용자 질문]\n${query}\n\n개인 맥락이 없습니다. 일반적이고 중립적인 안내로, 질문에 직접 답하고 필요한 가정은 명시하며 실행 가능한 다음 단계를 제시하세요.`;
 }
 
 export interface AppDeps {
@@ -570,6 +581,7 @@ export function createApp(deps: AppDeps = {}) {
   // 데모 모드에서 요청 간 proposal이 유지되도록 앱당 하나의 인메모리 store를 공유한다.
   // (Supabase 모드에선 쓰이지 않음 — 그쪽은 DB가 상태를 들고 있으므로 요청별 store로 충분)
   const sharedMemoryStore = new ProposalStore();
+  const completedAnswers = new Map<string, unknown>();
 
   const app = express();
   app.use(cors({
@@ -800,11 +812,13 @@ project=진행 중인 작업.
       includeRawComparison = false,
       temporaryNote,
       bypassAll = false,
+      conversationHistory = [],
     } = req.body as {
       approvedContextIds?: string[];
       includeRawComparison?: boolean;
       temporaryNote?: string;
       bypassAll?: boolean;
+      conversationHistory?: Array<{ role: string; content: string }>;
     };
     const approvedIds = approvedContextIds ?? [];
     const tempNote = temporaryNote;
@@ -817,6 +831,8 @@ project=진행 중인 작업.
     try {
       const user = await authenticate(req.headers.authorization);
       const store = storeFor(user);
+      const completed = completedAnswers.get(proposalId);
+      if (completed) return res.json(completed);
       const pending = await store.inspect(proposalId, user.id);
       // 일반 비교 호출에는 개인 맥락이 전혀 필요하지 않으며, 실패하면
       // Proposal은 승인 전 상태로 남아 같은 Preview에서 재시도할 수 있다.
@@ -853,7 +869,12 @@ project=진행 중인 작업.
       })();
       // bypassAll: 사용자가 "모든 개인 맥락 끄고 일반 답변"을 명시적으로 선택한 경우.
       const draft = await generate(
-        promptFor(proposal.query, bypassAll ? [] : approved, bypassAll ? undefined : tempNote?.trim()),
+        promptFor(
+          proposal.query,
+          bypassAll ? [] : approved,
+          bypassAll ? undefined : tempNote?.trim(),
+          Array.isArray(conversationHistory) ? conversationHistory : [],
+        ),
       );
       const approvedIdsSet = new Set(approved.map((item) => item.id));
       const unapproved = proposal.contexts.filter((item) => !approvedIdsSet.has(item.id));
@@ -897,7 +918,7 @@ project=진행 중인 작업.
         snapshotHash,
         audit: auditLog,
       });
-      return res.json({
+      const response = {
         contextBridgeAnswer,
         rawAnswer,
         usedContexts: approved,
@@ -906,7 +927,9 @@ project=진행 중인 작업.
         snapshotHash,
         memoryCandidates,
         auditLog,
-      });
+      };
+      completedAnswers.set(proposalId, response);
+      return res.json(response);
     } catch (error) {
       try {
         const user = await authenticate(req.headers.authorization);

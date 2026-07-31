@@ -537,7 +537,7 @@ export function selectMemoryCandidates(
     const key = memoryFingerprint(memory);
     if (
       seen.has(key) ||
-      selected.some((prior) => sameMemory(prior, memory) || sameEvidence(prior, memory))
+      selected.some((prior) => sameMemory(prior, memory) || sameEvidence(prior, memory) || sameSemanticSlot(prior, memory))
     ) continue;
     seen.add(key);
     selected.push(memory);
@@ -595,6 +595,12 @@ function sameEvidence(left: ExtractedMemory, right: ExtractedMemory): boolean {
   const a = normalize(left.sourceQuote || '');
   const b = normalize(right.sourceQuote || '');
   return a.length >= 4 && a === b;
+}
+
+function sameSemanticSlot(left: ExtractedMemory, right: ExtractedMemory): boolean {
+  if (left.sourceQuote && right.sourceQuote) return false;
+  return canonicalCategory(left.category) === canonicalCategory(right.category) &&
+    normalize(left.semanticGroup) === normalize(right.semanticGroup);
 }
 
 export function toCandidate(
