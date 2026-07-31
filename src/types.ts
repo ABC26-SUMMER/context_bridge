@@ -92,3 +92,21 @@ export type InteractionRecord = {
   sensitiveCount: number;
   createdAt: string;
 };
+
+export type ConversationTurn = {
+  id: string;
+  question: string;
+  answer: string;
+  rawAnswer?: string;
+  approvedContextCount: number;
+  createdAt: string;
+};
+
+export type ConversationSession = {
+  id: string;
+  profileId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  turns: ConversationTurn[];
+};

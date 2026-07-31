@@ -141,6 +141,12 @@ export interface StructuredContextDraft {
 export interface CreateProposalRequest {
   profileId: UUID;
   query: string;
+  conversationHistory?: ConversationMessage[];
+}
+
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 /** 답변 생성 요청. 프론트는 승인한 카드의 ID만 보낸다. */
@@ -148,6 +154,7 @@ export interface GenerateAnswerRequest {
   approvedContextIds: UUID[];
   includeRawComparison?: boolean; // 기본 true. 일반 답변 vs 개인화 답변 비교(데모용)
   temporaryNote?: string;         // 이번 질문에만 쓰는 일회성 메모. DB 저장 안 함.
+  conversationHistory?: ConversationMessage[];
 }
 
 export interface ResolveMemoryRequest {

@@ -65,6 +65,7 @@ export class SupabaseProposalStore implements IProposalStore {
       state: 'AWAITING_APPROVAL',
       candidate_ids: evaluations.filter((e) => e.suggested).map((e) => e.contextId),
       snapshot: { contexts: protectedContexts, evaluations },
+      idempotency_key: snapshot.id,
     });
     if (error) throw new Error(`proposal 저장 실패: ${error.message}`);
     return snapshot;
@@ -151,13 +152,21 @@ export class SupabaseProposalStore implements IProposalStore {
     return { proposal: { ...proposal, state: 'APPROVED' }, approved, snapshotHash };
   }
 
-  async complete(proposalId: string, userId: string): Promise<void> {
+  async complete(proposalId: string, userId: string, answer?: Record<string, unknown>): Promise<void> {
+    if (answer) {
+      const { error } = await this.client
+        .from('context_proposals')
+        .update({ answer })
+        .eq('id', proposalId)
+        .eq('user_id', userId)
+        .eq('state', 'APPROVED');
+      if (error) throw new Error(`답변 저장 실패: ${error.message}`);
+    }
     await this.client.rpc('advance_proposal_state', {
       p_proposal_id: proposalId,
       p_expected_state: 'APPROVED',
       p_next_state: 'ANSWERED',
     });
-    void userId;
   }
 
   async fail(proposalId: string, userId: string): Promise<void> {

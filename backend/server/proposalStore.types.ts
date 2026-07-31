@@ -70,7 +70,7 @@ export interface IProposalStore {
 
   approve(proposalId: string, userId: string, approvedIds: string[]): Promise<ApproveResult>;
 
-  complete(proposalId: string, userId: string): Promise<void>;
+  complete(proposalId: string, userId: string, answer?: Record<string, unknown>): Promise<void>;
 
   fail(proposalId: string, userId: string): Promise<void>;
 

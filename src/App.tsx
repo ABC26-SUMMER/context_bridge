@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import type { AnswerResponse, MemoryCandidate, SelectionMode } from "../contracts/types";
 import { ChatWorkspace } from "./components/ChatWorkspace";
@@ -32,7 +32,16 @@ import {
   type ProfileInput,
 } from "./services/profileRepository";
 import { getAnalyzedQuality, getGeneratedQuality, getIdleQuality } from "./services/qualityAnalyzer";
+import {
+  conversationTitle,
+  createConversationId,
+  createConversationSession,
+  loadConversationSessions,
+  MAX_TURNS_PER_SESSION,
+  saveConversationSessions,
+} from "./services/conversationStore";
 import type {
+  ConversationSession,
   ContextAnalysis,
   DemoAccount,
   DetectedIntent,
@@ -59,6 +68,7 @@ export default function App() {
   const [analyzing, setAnalyzing] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [question, setQuestion] = useState("내 상황에 맞는 계획을 세워 줘");
+  const [submittedQuestion, setSubmittedQuestion] = useState("");
   const [intent, setIntent] = useState<DetectedIntent | null>(null);
   const [selected, setSelected] = useState<SelectedContext[]>([]);
   const [sensitive, setSensitive] = useState<SelectedContext[]>([]);
@@ -77,6 +87,13 @@ export default function App() {
   const [retryStage, setRetryStage] = useState<RetryStage>(null);
   const [qualityMode, setQualityMode] = useState<QualityMode>("idle");
   const [records, setRecords] = useState<InteractionRecord[]>([]);
+  const [conversationSessions, setConversationSessions] = useState<ConversationSession[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState("");
+  const [currentTurnId, setCurrentTurnId] = useState("");
+  const [conversationProfileId, setConversationProfileId] = useState("");
+  const [conversationReady, setConversationReady] = useState(false);
+  const [conversationNotice, setConversationNotice] = useState("");
+  const generateLockRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -103,6 +120,9 @@ export default function App() {
         setProfiles([]);
         setCurrentProfileId("");
         setRecords([]);
+        setConversationSessions([]);
+        setCurrentConversationId("");
+        setConversationReady(false);
         setActivePage("main");
       }
     });
@@ -122,6 +142,36 @@ export default function App() {
     () => profiles.find((profile) => profile.id === currentProfileId) || profiles[0] || null,
     [profiles, currentProfileId],
   );
+
+  const currentConversation = useMemo(
+    () => conversationSessions.find((item) => item.id === currentConversationId) || conversationSessions[0] || null,
+    [conversationSessions, currentConversationId],
+  );
+
+  const recentConversationHistory = useMemo(
+    () => (currentConversation?.turns || []).slice(-6).flatMap((turn) => [
+      { role: "user" as const, content: turn.question },
+      { role: "assistant" as const, content: turn.answer },
+    ]),
+    [currentConversation?.turns],
+  );
+
+  useEffect(() => {
+    if (!currentProfile) return;
+    const stored = loadConversationSessions(currentProfile.id);
+    const nextSessions = stored.length ? stored : [createConversationSession(currentProfile.id)];
+    setConversationReady(false);
+    setConversationProfileId(currentProfile.id);
+    setConversationSessions(nextSessions);
+    setCurrentConversationId(nextSessions[0].id);
+    setConversationReady(true);
+    setConversationNotice("");
+  }, [currentProfile?.id]);
+
+  useEffect(() => {
+    if (!conversationReady || !conversationProfileId) return;
+    saveConversationSessions(conversationProfileId, conversationSessions);
+  }, [conversationProfileId, conversationReady, conversationSessions]);
 
   const currentAccount = useMemo<DemoAccount | null>(() => {
     if (!session || !currentProfile) return null;
@@ -148,12 +198,12 @@ export default function App() {
 
   const quality =
     qualityMode === "generated"
-      ? getGeneratedQuality(question, approved)
+      ? getGeneratedQuality(submittedQuestion, approved)
       : qualityMode === "analyzed"
         ? getAnalyzedQuality()
         : getIdleQuality();
 
-  const refreshUserData = async (preferredProfileId?: string) => {
+  const refreshUserData = async (preferredProfileId?: string, preserveAnalysis = false) => {
     setDataLoading(true);
     setDataError("");
 
@@ -172,7 +222,7 @@ export default function App() {
       setCurrentProfileId(nextId);
 
       if (nextProfile) {
-        resetAnalysis(nextProfile.defaultQuestion);
+        if (!preserveAnalysis) resetAnalysis(nextProfile.defaultQuestion);
         const history = await loadQuestionHistory(
           session.access_token,
           nextProfile.id,
@@ -364,12 +414,46 @@ export default function App() {
     setApiError("");
     setRetryStage(null);
     setQuestion(nextQuestion);
+    setSubmittedQuestion("");
+    setCurrentTurnId("");
     setQualityMode("idle");
+  };
+
+  const startNewConversation = () => {
+    if (!currentProfile) return;
+    const next = createConversationSession(currentProfile.id);
+    setConversationSessions((current) => [next, ...current]);
+    setCurrentConversationId(next.id);
+    setConversationNotice("");
+    resetAnalysis("");
+  };
+
+  const changeConversation = (conversationId: string) => {
+    setCurrentConversationId(conversationId);
+    setConversationNotice("");
+    resetAnalysis("");
   };
 
   const analyze = async () => {
     if (!currentProfile || !session) return;
     const normalizedQuestion = question.trim() || currentProfile.defaultQuestion;
+
+    let targetConversationId = currentConversation?.id;
+    const shouldStartFreshSession = !currentConversation || currentConversation.turns.length >= MAX_TURNS_PER_SESSION;
+    const historyForRequest = shouldStartFreshSession ? [] : recentConversationHistory;
+    if (shouldStartFreshSession) {
+      const next = createConversationSession(currentProfile.id);
+      setConversationSessions((current) => [next, ...current]);
+      setCurrentConversationId(next.id);
+      targetConversationId = next.id;
+      setConversationNotice(`대화가 ${MAX_TURNS_PER_SESSION}개를 넘어 새 대화를 시작했어요.`);
+    } else {
+      setConversationNotice("");
+    }
+
+    const nextTurnId = createConversationId();
+    setSubmittedQuestion(normalizedQuestion);
+    setCurrentTurnId(nextTurnId);
 
     setAnalyzing(true);
     setApiError("");
@@ -389,10 +473,11 @@ export default function App() {
       const proposal = await createProposal(session.access_token, {
         profileId: currentProfile.id,
         query: normalizedQuestion,
+        conversationHistory: historyForRequest,
       });
       const analysis = mapProposalToAnalysis(proposal);
 
-      setQuestion(normalizedQuestion);
+      setQuestion("");
       setProposalId(proposal.proposalId);
       setSelectionMode(proposal.selectionMode);
       setIntent(analysis.intent);
@@ -402,6 +487,7 @@ export default function App() {
       setAnalysisSource(analysis.source);
       setApprovals(getInitialApprovals(proposal.evaluations));
       setQualityMode("analyzed");
+      if (targetConversationId) setCurrentConversationId(targetConversationId);
     } catch (error) {
       setApiError(getErrorMessage(error));
       setRetryStage("proposal");
@@ -425,8 +511,9 @@ export default function App() {
   };
 
   const generate = async () => {
-    if (!proposalId || !session || !currentProfile || generating) return;
+    if (!proposalId || !session || !currentProfile || generating || generateLockRef.current) return;
 
+    generateLockRef.current = true;
     setGenerating(true);
     setApiError("");
     setRetryStage(null);
@@ -435,14 +522,46 @@ export default function App() {
       const answer = await generateAnswer(session.access_token, proposalId, {
         approvedContextIds: approved.map((field) => field.contextId || field.key),
         includeRawComparison: true,
+        conversationHistory: recentConversationHistory,
       });
 
       applyAnswer(answer);
+      const turnId = currentTurnId || createConversationId();
+      const now = new Date().toISOString();
+      setCurrentTurnId(turnId);
+      setConversationSessions((current) => current.map((conversation) => {
+        if (conversation.id !== currentConversationId) return conversation;
+        const turn = {
+          id: turnId,
+          question: submittedQuestion,
+          answer: answer.contextBridgeAnswer,
+          rawAnswer: answer.rawAnswer || "",
+          approvedContextCount: approved.length,
+          createdAt: now,
+        };
+        const exists = conversation.turns.some((item) => item.id === turnId);
+        return {
+          ...conversation,
+          title: conversation.turns.length ? conversation.title : conversationTitle(submittedQuestion),
+          updatedAt: now,
+          turns: exists
+            ? conversation.turns.map((item) => item.id === turnId ? turn : item)
+            : [...conversation.turns, turn],
+        };
+      }));
       setRecords((current) => [mapAuditLog(answer.auditLog, currentProfile.name), ...current]);
     } catch (error) {
-      setApiError(getErrorMessage(error));
-      setRetryStage("generate");
+      const message = getErrorMessage(error);
+      setApiError(
+        /Gemini|모델|model/i.test(message)
+          ? message
+          : "답변 요청이 만료되었거나 완료되었습니다. 다시 시도하면 새 요청으로 이어집니다.",
+      );
+      setQuestion(submittedQuestion);
+      setProposalId("");
+      setRetryStage("proposal");
     } finally {
+      generateLockRef.current = false;
       setGenerating(false);
     }
   };
@@ -465,7 +584,7 @@ export default function App() {
     try {
       await resolveMemory(session.access_token, candidateId, { action });
       setMemoryActions((current) => ({ ...current, [candidateId]: action }));
-      if (action === "save" && currentProfile) await refreshUserData(currentProfile.id);
+      if (action === "save" && currentProfile) await refreshUserData(currentProfile.id, true);
     } catch (error) {
       setApiError(getErrorMessage(error));
       setRetryStage(null);
@@ -523,6 +642,11 @@ export default function App() {
             account={currentAccount}
             profile={currentProfile}
             question={question}
+            submittedQuestion={submittedQuestion}
+            conversations={conversationSessions}
+            conversationId={currentConversation?.id || ""}
+            currentTurnId={currentTurnId}
+            conversationNotice={conversationNotice}
             analyzing={analyzing}
             generating={generating}
             intent={intent}
@@ -543,6 +667,8 @@ export default function App() {
             memoryResolvingId={memoryResolvingId}
             memoryActions={memoryActions}
             onQuestionChange={setQuestion}
+            onConversationChange={changeConversation}
+            onNewConversation={startNewConversation}
             onAnalyze={analyze}
             onToggleApproval={toggleApproval}
             onGenerate={generate}

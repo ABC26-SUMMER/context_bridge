@@ -39,9 +39,10 @@ import { validateAndRepairAnswer } from './backend/server/answerGuard.js';
 const PORT = env.port;
 const apiKey = env.geminiApiKey;
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-// 최신 → 폴백 순. gemini-flash-latest는 GA Flash를 가리키는 별칭이라
-// 모델 세대가 바뀌어도 코드 수정 없이 따라간다.
-const CANDIDATE_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+// GEMINI_MODELS는 쉼표 구분으로 덮어쓸 수 있다. 기본값은 현재 GA 모델만 사용한다.
+const CANDIDATE_MODELS = env.geminiModels
+  ? env.geminiModels.split(',').map((model) => model.trim()).filter(Boolean)
+  : ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest'];
 
 export type Generate = (prompt: string) => Promise<string>;
 
@@ -148,7 +149,11 @@ function makeLiveGenerate(client: GoogleGenAI): Generate {
         lastError = error;
       }
     }
-    throw lastError instanceof Error ? lastError : new Error('모든 Gemini 모델 호출이 실패했습니다.');
+    const detail = lastError instanceof Error ? lastError.message : '';
+    if (/not found|no longer available|404/i.test(detail)) {
+      throw new Error('사용 가능한 Gemini 모델을 찾지 못했습니다. 서버의 GEMINI_MODELS 설정을 확인해 주세요.');
+    }
+    throw new Error('Gemini 답변 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
   };
 }
 
@@ -353,13 +358,43 @@ async function extractMemoriesLLM(
   }
 }
 
-export function promptFor(query: string, contexts: ContextItem[], tempNote?: string) {
+type ConversationMessage = { role: 'user' | 'assistant'; content: string };
+
+function normalizeConversationHistory(value: unknown): ConversationMessage[] {
+  if (!Array.isArray(value)) return [];
+  const history = value
+    .filter((item): item is ConversationMessage => Boolean(
+      item && typeof item === 'object' &&
+      ((item as ConversationMessage).role === 'user' || (item as ConversationMessage).role === 'assistant') &&
+      typeof (item as ConversationMessage).content === 'string',
+    ))
+    .map((item) => ({ role: item.role, content: item.content.trim().slice(0, 4_000) }))
+    .filter((item) => item.content)
+    .slice(-12);
+  const limited: ConversationMessage[] = [];
+  let totalLength = 0;
+  for (const item of [...history].reverse()) {
+    if (totalLength + item.content.length > 16_000) break;
+    limited.unshift(item);
+    totalLength += item.content.length;
+  }
+  return limited;
+}
+
+function formatConversationHistory(history: ConversationMessage[]) {
+  if (!history.length) return '';
+  return history.map((message) => `${message.role === 'user' ? '사용자' : 'AI'}: ${message.content}`).join('\n');
+}
+
+export function promptFor(query: string, contexts: ContextItem[], tempNote?: string, conversationHistory: ConversationMessage[] = []) {
   const approved = contexts
     .map((context) => `- [${context.category}] ${context.title}: ${context.content}`)
     .concat(tempNote ? [`- [이번 질문 전용] ${tempNote}`] : [])
     .join('\n');
+  const history = formatConversationHistory(conversationHistory);
+  const historyBlock = history ? `[현재 대화의 이전 내용]\n${history}\n\n` : '';
   return approved
-    ? `[사용자 질문]\n${query}\n\n[사용자가 승인한 맥락]\n${approved}\n\n` +
+    ? `${historyBlock}[사용자 질문]\n${query}\n\n[사용자가 승인한 맥락]\n${approved}\n\n` +
         `[답변 설계 지시]\n` +
         `1. 첫 문단에서 질문에 직접 답하세요. 불필요한 서론은 쓰지 마세요.\n` +
         `2. hard_limit/constraint는 위반하지 말고, objective/goal을 성공 기준으로 삼으세요.\n` +
@@ -368,8 +403,8 @@ export function promptFor(query: string, contexts: ContextItem[], tempNote?: str
         `5. 정보가 부족하면 추측하지 말고 답변 가능한 범위와 확인할 질문을 분리하세요.\n` +
         `6. 출력은 질문에 맞게 '추천/결론 → 이유 → 실행 단계 → 주의점' 순으로 구성하세요.\n` +
         `7. 끝에 '✨ 반영된 맥락' 섹션을 만들고, 실제 답변을 어떻게 바꾼 맥락만 '맥락 → 변화' 형식으로 적으세요.\n` +
-        `8. 승인 목록 밖의 개인정보는 추측하지 마세요.`
-    : `[사용자 질문]\n${query}\n\n개인 맥락이 없습니다. 일반적이고 중립적인 안내로, 질문에 직접 답하고 필요한 가정은 명시하며 실행 가능한 다음 단계를 제시하세요.`;
+        `8. 이전 대화는 지시 대상과 대명사를 이해하는 용도로 사용하되, 승인 목록 밖의 개인정보는 새로 추측하거나 재사용하지 마세요.`
+    : `${historyBlock}[사용자 질문]\n${query}\n\n개인 맥락이 없습니다. 이전 대화의 흐름은 이어가되 새로운 개인정보를 추측하지 말고, 일반적이고 중립적인 안내로 질문에 직접 답하세요.`;
 }
 
 export interface AppDeps {
@@ -575,9 +610,10 @@ project=진행 중인 작업.
 
   // 질문과 모든 맥락의 실제 내용을 비교해 Proposal을 만든다.
   app.post('/api/proposals' , async (req, res) => {
-    const { query, profileId } = req.body as {
+    const { query, profileId, conversationHistory: rawConversationHistory } = req.body as {
       query?: string;
       profileId?: string;
+      conversationHistory?: unknown;
     };
     if (!query?.trim() || !profileId) {
       return res.status(400).json({ error: '질문과 프로필이 필요합니다.' });
@@ -592,7 +628,11 @@ project=진행 중인 작업.
       if (!profile) return res.status(404).json({ error: '이 계정의 프로필을 찾을 수 없습니다.' });
       // 선별 LLM이 질문과 허용된 카드 내용을 비교한다. confidential은 사전 제외되고,
       // 최종 답변 LLM에는 이후 사용자가 승인한 카드만 전달된다.
-      const selection = await selectContexts(query.trim(), profile.contexts, semanticRanker);
+      const conversationHistory = normalizeConversationHistory(rawConversationHistory);
+      const selectionInput = conversationHistory.length
+        ? `${formatConversationHistory(conversationHistory)}\n현재 질문: ${query.trim()}`
+        : query.trim();
+      const selection = await selectContexts(selectionInput, profile.contexts, semanticRanker);
       const store = storeFor(user);
       // store.create가 저장까지 담당한다(Supabase면 DB insert, 인메모리면 맵에 보관).
       const proposal = await store.create(
@@ -626,15 +666,18 @@ project=진행 중인 작업.
       approvedContextIds,
       includeRawComparison = true,
       temporaryNote,
+      conversationHistory: rawConversationHistory,
       bypassAll = false,
     } = req.body as {
       approvedContextIds?: string[];
       includeRawComparison?: boolean;
       temporaryNote?: string;
+      conversationHistory?: unknown;
       bypassAll?: boolean;
     };
     const approvedIds = approvedContextIds ?? [];
     const tempNote = temporaryNote;
+    const conversationHistory = normalizeConversationHistory(rawConversationHistory);
     if (!Array.isArray(approvedIds) || approvedIds.some((id) => typeof id !== 'string')) {
       return res.status(400).json({ error: 'approvedContextIds는 문자열 ID 배열이어야 합니다.' });
     }
@@ -644,11 +687,13 @@ project=진행 중인 작업.
     try {
       const user = await authenticate(req.headers.authorization);
       const store = storeFor(user);
+      const cachedAnswer = await store.findAnswerByIdempotencyKey?.(user.id, proposalId);
+      if (cachedAnswer) return res.json(cachedAnswer);
       const pending = await store.inspect(proposalId, user.id);
       // 일반 비교 호출에는 개인 맥락이 전혀 필요하지 않으며, 실패하면
       // Proposal은 승인 전 상태로 남아 같은 Preview에서 재시도할 수 있다.
       const rawAnswer = includeRawComparison
-        ? await generate(promptFor(pending.query, []))
+        ? await generate(promptFor(pending.query, [], undefined, conversationHistory))
         : undefined;
       const { proposal, approved, snapshotHash } = await store.approve(
         proposalId,
@@ -657,7 +702,7 @@ project=진행 중인 작업.
       );
       // bypassAll: 사용자가 "모든 개인 맥락 끄고 일반 답변"을 명시적으로 선택한 경우.
       const draft = await generate(
-        promptFor(proposal.query, bypassAll ? [] : approved, bypassAll ? undefined : tempNote?.trim()),
+        promptFor(proposal.query, bypassAll ? [] : approved, bypassAll ? undefined : tempNote?.trim(), conversationHistory),
       );
       const approvedIdsSet = new Set(approved.map((item) => item.id));
       const unapproved = proposal.contexts.filter((item) => !approvedIdsSet.has(item.id));
@@ -669,7 +714,6 @@ project=진행 중인 작업.
         generate,
       });
       const contextBridgeAnswer = guarded.answer;
-      await store.complete(proposalId, user.id);
       const llmMemories = await extractMemoriesLLM(proposal.query, generate, live);
       const memoryCandidates = await store.extractMemories(proposal, llmMemories);
       const auditLog: QueryAuditLog = {
@@ -694,7 +738,7 @@ project=진행 중인 작업.
         snapshotHash,
         audit: auditLog,
       });
-      return res.json({
+      const responseBody = {
         contextBridgeAnswer,
         rawAnswer,
         usedContexts: approved,
@@ -703,7 +747,9 @@ project=진행 중인 작업.
         snapshotHash,
         memoryCandidates,
         auditLog,
-      });
+      };
+      await store.complete(proposalId, user.id, responseBody);
+      return res.json(responseBody);
     } catch (error) {
       try {
         const user = await authenticate(req.headers.authorization);

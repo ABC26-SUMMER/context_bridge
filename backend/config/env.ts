@@ -15,6 +15,7 @@ export const env = {
   nodeEnv: first(process.env.NODE_ENV, 'development'),
   port: Number(first(process.env.PORT, '3000')),
   geminiApiKey: first(process.env.GEMINI_API_KEY),
+  geminiModels: first(process.env.GEMINI_MODELS),
   supabaseUrl: first(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_URL),
   supabasePublicKey: first(
     process.env.SUPABASE_PUBLISHABLE_KEY,

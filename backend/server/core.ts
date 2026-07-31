@@ -130,6 +130,7 @@ export function evaluateContexts(
 
 export class ProposalStore implements IProposalStore {
   private proposals = new Map<string, Proposal>();
+  private answers = new Map<string, Record<string, unknown>>();
   private memories = new Map<
     string,
     MemoryCandidate & { userId: string; profileId: string; blueprint: ExtractedMemory }
@@ -188,14 +189,21 @@ export class ProposalStore implements IProposalStore {
     return proposal;
   }
 
-  async complete(proposalId: string, _userId?: string): Promise<void> {
+  async complete(proposalId: string, _userId?: string, answer?: Record<string, unknown>): Promise<void> {
     const proposal = this.proposals.get(proposalId);
-    if (proposal) proposal.state = 'ANSWERED';
+    if (proposal) {
+      if (answer) this.answers.set(`${proposal.userId}:${proposalId}`, answer);
+      proposal.state = 'ANSWERED';
+    }
   }
 
   async fail(proposalId: string, _userId?: string): Promise<void> {
     const proposal = this.proposals.get(proposalId);
     if (proposal?.state === 'APPROVED') proposal.state = 'FAILED';
+  }
+
+  async findAnswerByIdempotencyKey(userId: string, key: string): Promise<Record<string, unknown> | null> {
+    return this.answers.get(`${userId}:${key}`) || null;
   }
 
   /**

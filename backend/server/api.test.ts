@@ -156,4 +156,67 @@ describe('실제 API 관통', () => {
     // live=false라 선별·추출 LLM은 건너뛰고, 답변 생성(비교 1 + 개인화 1)만 spy를 쓴다.
     expect(calls).toBe(2);
   });
+
+  it('같은 세션의 이전 대화를 다음 답변 문맥으로 전달한다', async () => {
+    const prompts: string[] = [];
+    const spy = async (prompt: string) => {
+      prompts.push(prompt);
+      return offlineGenerate(prompt);
+    };
+    const app = createApp({ generate: spy, live: false });
+    const conversationHistory = [
+      { role: 'user', content: '이번 방학에는 SQLD를 준비하고 싶어.' },
+      { role: 'assistant', content: '기초 이론부터 학습하는 계획을 추천합니다.' },
+    ];
+    const proposed = await request(app)
+      .post('/api/proposals')
+      .set('Authorization', 'Bearer demo-student')
+      .send({
+        profileId: 'student-profile',
+        query: '그 계획을 주 단위로 나눠줘.',
+        conversationHistory,
+      })
+      .expect(200);
+
+    const answered = await request(app)
+      .post(`/api/proposals/${proposed.body.proposalId}/answers`)
+      .set('Authorization', 'Bearer demo-student')
+      .send({ approvedContextIds: [], includeRawComparison: false, conversationHistory })
+      .expect(200);
+
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]).toContain('[현재 대화의 이전 내용]');
+    expect(prompts[0]).toContain('이번 방학에는 SQLD를 준비하고 싶어.');
+    expect(prompts[0]).toContain('[사용자 질문]\n그 계획을 주 단위로 나눠줘.');
+    expect(answered.body.auditLog.userQuery).toBe('그 계획을 주 단위로 나눠줘.');
+  });
+
+  it('완료된 Proposal의 답변 요청은 기존 결과를 다시 반환한다', async () => {
+    let calls = 0;
+    const spy = async (prompt: string) => {
+      calls += 1;
+      return offlineGenerate(prompt);
+    };
+    const app = createApp({ generate: spy, live: false });
+    const proposed = await request(app)
+      .post('/api/proposals')
+      .set('Authorization', 'Bearer demo-student')
+      .send({ profileId: 'student-profile', query: '이번 주 공부 계획을 알려줘' })
+      .expect(200);
+    const requestBody = { approvedContextIds: [], includeRawComparison: false };
+
+    const first = await request(app)
+      .post(`/api/proposals/${proposed.body.proposalId}/answers`)
+      .set('Authorization', 'Bearer demo-student')
+      .send(requestBody)
+      .expect(200);
+    const repeated = await request(app)
+      .post(`/api/proposals/${proposed.body.proposalId}/answers`)
+      .set('Authorization', 'Bearer demo-student')
+      .send(requestBody)
+      .expect(200);
+
+    expect(repeated.body).toEqual(first.body);
+    expect(calls).toBe(1);
+  });
 });

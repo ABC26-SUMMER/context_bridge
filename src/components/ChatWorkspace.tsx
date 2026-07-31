@@ -2,10 +2,12 @@ import { useEffect, useRef } from "react";
 import {
   AlertCircle,
   Check,
+  ChevronDown,
   Copy,
   ArrowLeft,
   LoaderCircle,
   Mic,
+  Plus,
   RefreshCw,
   Save,
   SendHorizontal,
@@ -16,13 +18,18 @@ import {
 import type { MemoryCandidate, SelectionMode } from "../../contracts/types";
 import type { QualityState } from "../services/qualityAnalyzer";
 import { toSpeechText } from "../services/speechText";
-import type { DemoAccount, DetectedIntent, SelectedContext, UiMode, UserProfile } from "../types";
+import type { ConversationSession, DemoAccount, DetectedIntent, SelectedContext, UiMode, UserProfile } from "../types";
 import { Pill } from "./Pill";
 
 type ChatWorkspaceProps = {
   account: DemoAccount;
   profile: UserProfile;
   question: string;
+  submittedQuestion: string;
+  conversations: ConversationSession[];
+  conversationId: string;
+  currentTurnId: string;
+  conversationNotice: string;
   analyzing: boolean;
   generating: boolean;
   intent: DetectedIntent | null;
@@ -43,6 +50,8 @@ type ChatWorkspaceProps = {
   memoryResolvingId: string;
   memoryActions: Record<string, "save" | "ignore">;
   onQuestionChange: (question: string) => void;
+  onConversationChange: (conversationId: string) => void;
+  onNewConversation: () => void;
   onAnalyze: () => void;
   onToggleApproval: (key: string, approved: boolean) => void;
   onGenerate: () => void;
@@ -55,6 +64,11 @@ export function ChatWorkspace({
   account,
   profile,
   question,
+  submittedQuestion,
+  conversations,
+  conversationId,
+  currentTurnId,
+  conversationNotice,
   analyzing,
   generating,
   intent,
@@ -75,6 +89,8 @@ export function ChatWorkspace({
   memoryResolvingId,
   memoryActions,
   onQuestionChange,
+  onConversationChange,
+  onNewConversation,
   onAnalyze,
   onToggleApproval,
   onGenerate,
@@ -88,10 +104,12 @@ export function ChatWorkspace({
   const approvedCount = approved.length;
   const canGenerate = Boolean(intent && !generating);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const activeConversation = conversations.find((conversation) => conversation.id === conversationId);
+  const previousTurns = activeConversation?.turns.filter((turn) => turn.id !== currentTurnId) || [];
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [intent, bridgePrompt, apiError, generating]);
+  }, [intent, bridgePrompt, apiError, generating, previousTurns.length]);
 
   const copyAnswer = async () => {
     if (!bridgePrompt) return;
@@ -141,7 +159,7 @@ export function ChatWorkspace({
 
   return (
     <section className="flex h-screen min-h-[720px] flex-col bg-[#fbfaf6] max-lg:min-h-screen">
-      <header className="flex min-h-16 items-center justify-between gap-4 border-b border-line bg-[#fbfaf6]/95 px-6 backdrop-blur max-sm:px-4">
+      <header className="flex min-h-16 items-center justify-between gap-4 border-b border-line bg-[#fbfaf6]/95 px-6 backdrop-blur max-sm:flex-wrap max-sm:px-4 max-sm:py-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-black uppercase text-bridge">Context Bridge</span>
@@ -151,31 +169,50 @@ export function ChatWorkspace({
             짧은 질문에 필요한 맥락을 안전하게 연결하기
           </h2>
         </div>
-        <div className="hidden text-right text-sm leading-6 text-muted sm:block">
-          <strong className="block text-ink">{account.displayName}</strong>
-          {account.description}
+        <div className="flex shrink-0 items-center gap-2 max-sm:w-full">
+          <label className="relative block max-sm:min-w-0 max-sm:flex-1">
+            <span className="sr-only">대화 선택</span>
+            <select
+              className="min-h-10 w-full max-w-52 appearance-none rounded-[6px] border border-line bg-white py-2 pl-3 pr-8 text-sm font-bold text-ink max-sm:max-w-none"
+              value={conversationId}
+              onChange={(event) => onConversationChange(event.target.value)}
+            >
+              {conversations.map((conversation) => (
+                <option key={conversation.id} value={conversation.id}>{conversation.title}</option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-3" size={14} />
+          </label>
+          <button className="inline-flex min-h-10 items-center gap-2 rounded-[6px] border border-line bg-white px-3 text-sm font-black hover:border-bridge" type="button" onClick={onNewConversation}>
+            <Plus size={16} /> <span className="max-sm:hidden">새 대화</span>
+          </button>
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 py-7 max-sm:px-4">
         <div className="mx-auto grid max-w-3xl gap-5">
-          <AssistantMessage
-            eyebrow={intent ? "2단계 / 2단계" : "1단계 / 2단계"}
-            title={intent ? "AI가 이 정보를 사용하려고 합니다." : "무엇을 도와드릴까요?"}
-            body={intent
-              ? "왼쪽에서 사용할 정보만 직접 선택한 뒤 최종 확인하세요."
-              : "질문을 입력하고 다음을 누르면 사용할 정보 후보를 보여드립니다."}
-          />
-
-          <UserMessage>{question || profile.defaultQuestion}</UserMessage>
-
-          {!intent && !analyzing && (
+          {!previousTurns.length && !submittedQuestion && (
             <AssistantMessage
-              eyebrow="분석 대기"
-              title="질문을 입력해 주세요"
-              body="질문을 보내면 필요한 내 정보만 찾아 보여드립니다. 직접 선택한 정보만 답변에 사용됩니다."
+              eyebrow="새로운 대화"
+              title={`${account.displayName}님, 무엇을 도와드릴까요?`}
+              body="질문을 보내면 필요한 내 정보만 찾아 보여드릴게요. 대화는 아래로 계속 이어집니다."
             />
           )}
+
+          {conversationNotice && (
+            <div className="mx-auto rounded-full border border-[#cfe0dc] bg-[#f1faf7] px-4 py-2 text-center text-xs font-bold text-bridge-dark">{conversationNotice}</div>
+          )}
+
+          {previousTurns.map((turn) => (
+            <div className="contents" key={turn.id}>
+              <UserMessage>{turn.question}</UserMessage>
+              <AssistantMessage eyebrow="Context Bridge" title="답변">
+                <div className="whitespace-pre-wrap text-sm leading-7 text-ink">{turn.answer}</div>
+              </AssistantMessage>
+            </div>
+          ))}
+
+          {submittedQuestion && <UserMessage>{submittedQuestion}</UserMessage>}
 
           {analyzing && (
             <LoadingMessage
