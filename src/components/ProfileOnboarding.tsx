@@ -22,6 +22,7 @@ import {
   personaMeta,
   privacyChoiceMeta,
   surveyDefinitions,
+  toggleSurveyChoice,
   type PrivacyAnswers,
   type PrivacyChoice,
   type SurveyAnswer,
@@ -110,9 +111,7 @@ export function ProfileOnboarding({
       const selected = Array.isArray(current[field.id]) ? current[field.id] as string[] : [];
       return {
         ...current,
-        [field.id]: selected.includes(value)
-          ? selected.filter((item) => item !== value)
-          : [...selected, value],
+        [field.id]: toggleSurveyChoice(selected, value),
       };
     });
   };

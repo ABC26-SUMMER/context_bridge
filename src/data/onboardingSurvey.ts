@@ -5,6 +5,8 @@ export type SurveyAnswers = Record<string, SurveyAnswer>;
 export type PrivacyChoice = "allow" | "ask" | "never";
 export type PrivacyAnswers = Record<string, PrivacyChoice>;
 
+const EXCLUSIVE_SURVEY_CHOICES = ["답하지 않음", "특별한 조건 없음", "특별한 주의 없음", "아직 없음", "아직 미정"];
+
 export type SurveyField = {
   id: string;
   label: string;
@@ -33,7 +35,12 @@ export type SurveyDefinition = {
   privacyDomains: PrivacyDomain[];
 };
 
-export const personaMeta: Record<PersonaType, { label: string; description: string; icon: string; profileName: string }> = {
+export const personaMeta: Record<PersonaType, {
+  label: string;
+  description: string;
+  icon: string;
+  profileName: string;
+}> = {
   custom: {
     label: "일반인",
     description: "일상, 업무, 여행, 소비와 취미를 폭넓게 도와드려요.",
@@ -57,7 +64,7 @@ export const personaMeta: Record<PersonaType, { label: string; description: stri
 export const surveyDefinitions: Record<PersonaType, SurveyDefinition> = {
   custom: {
     title: "평소 생활과 원하는 도움을 알려주세요",
-    intro: "정확한 주소나 민감한 정보는 필요하지 않아요. 답변에 도움이 되는 만큼만 선택해 주세요.",
+    intro: "생각나는 문장을 길게 쓰지 않아도 괜찮아요. 나와 가까운 항목을 여러 개 골라 주세요.",
     fields: [
       {
         id: "purposes",
@@ -79,51 +86,57 @@ export const surveyDefinitions: Record<PersonaType, SurveyDefinition> = {
       },
       {
         id: "activity",
-        label: "현재 주로 하는 일이나 활동",
-        type: "text",
-        placeholder: "예: 마케팅 회사원, 프리랜서, 육아 중",
+        label: "요즘 주로 어떤 생활을 하고 있나요?",
+        helper: "여러 가지를 함께 하고 있다면 모두 골라도 돼요.",
+        type: "multi",
+        options: ["직장 생활", "자영업", "프리랜서", "구직·이직 준비", "가사·육아", "공부", "은퇴 후 생활", "여러 일을 병행", "답하지 않음"],
         cardTitle: "현재 활동",
         category: "identity",
       },
       {
         id: "region",
-        label: "주로 생활하는 지역",
-        helper: "시·군·구 정도면 충분해요.",
+        label: "집을 기준으로 주로 생활하는 지역",
+        helper: "정확한 주소는 필요 없어요. 시·군·구 정도면 충분해요.",
         type: "text",
         placeholder: "예: 수원시 영통구",
-        cardTitle: "생활 지역",
+        required: true,
+        cardTitle: "거주 지역",
         category: "identity",
       },
       {
         id: "goal",
-        label: "요즘 가장 중요하게 생각하는 목표",
-        type: "text",
-        placeholder: "예: 퇴근 후 꾸준히 운동하기",
+        label: "요즘 중요하게 생각하는 목표는 무엇인가요?",
+        helper: "지금 관심이 가는 것을 모두 골라 주세요.",
+        type: "multi",
+        options: ["건강·운동", "일·커리어", "돈·소비 관리", "가족·육아", "공부·자기계발", "인간관계", "취미·여가", "여행", "생활 안정"],
         cardTitle: "현재 목표",
         category: "objective",
       },
       {
         id: "transport",
         label: "주로 이용하는 이동수단",
-        type: "single",
-        options: ["도보", "대중교통", "자가용", "자전거", "상황에 따라 다름"],
+        helper: "자주 이용하는 수단을 모두 골라 주세요.",
+        type: "multi",
+        options: ["도보", "버스", "지하철", "자가용", "택시", "자전거"],
         cardTitle: "이동수단",
         category: "resource",
       },
       {
         id: "availableTime",
         label: "계획에 활용할 수 있는 시간",
-        type: "single",
-        options: ["평일 낮", "평일 저녁", "주말", "매일 1시간 이내", "일정하지 않음"],
+        helper: "활용하기 좋은 시간을 모두 골라 주세요.",
+        type: "multi",
+        options: ["평일 아침", "평일 낮", "평일 저녁", "주말", "하루 1시간 이내", "일정하지 않음"],
         cardTitle: "사용 가능 시간",
         category: "resource",
       },
       {
         id: "recommendationStyle",
         label: "추천을 받을 때 무엇이 중요한가요?",
-        type: "single",
+        helper: "추천을 고를 때 중요하게 보는 기준을 모두 골라 주세요.",
+        type: "multi",
         options: ["가성비", "편리함", "검증된 선택", "새로운 경험", "여러 선택지 비교"],
-        defaultValue: "여러 선택지 비교",
+        defaultValue: ["여러 선택지 비교"],
         cardTitle: "추천 기준",
         category: "preference",
       },
@@ -140,8 +153,9 @@ export const surveyDefinitions: Record<PersonaType, SurveyDefinition> = {
       {
         id: "constraints",
         label: "답변에서 꼭 고려해야 할 생활 조건이 있나요?",
-        type: "text",
-        placeholder: "예: 반려견과 함께 갈 수 있는 장소가 필요해요.",
+        helper: "해당하는 조건을 모두 골라 주세요.",
+        type: "multi",
+        options: ["예산 제한", "이동 거리", "아이 동반", "반려동물 동반", "건강·음식 주의", "시간 제한", "접근성 중요", "특별한 조건 없음"],
         cardTitle: "생활 조건",
         category: "hard_limit",
       },
@@ -156,7 +170,7 @@ export const surveyDefinitions: Record<PersonaType, SurveyDefinition> = {
   },
   university_student: {
     title: "학교생활과 앞으로의 목표를 알려주세요",
-    intro: "성적과 학번은 묻지 않아요. 공부 계획과 진로 답변에 필요한 내용부터 가볍게 시작해요.",
+    intro: "학교와 생활 지역만 짧게 적고, 나머지는 나와 가까운 항목을 여러 개 골라 주세요.",
     fields: [
       {
         id: "purposes",
@@ -168,30 +182,43 @@ export const surveyDefinitions: Record<PersonaType, SurveyDefinition> = {
         cardTitle: "대학생활 목표",
         category: "objective",
       },
-      { id: "school", label: "학교", type: "text", placeholder: "예: 한신대학교", cardTitle: "학교", category: "identity" },
-      { id: "major", label: "전공", type: "text", placeholder: "예: 컴퓨터공학", cardTitle: "전공", category: "identity" },
+      { id: "school", label: "다니는 학교", type: "text", placeholder: "예: 한신대학교", cardTitle: "학교", category: "identity" },
+      {
+        id: "region",
+        label: "학교가 아닌, 집을 기준으로 주로 생활하는 지역",
+        helper: "정확한 주소는 필요 없어요. 시·군·구 정도만 적어 주세요.",
+        type: "text",
+        placeholder: "예: 수원시 영통구",
+        required: true,
+        cardTitle: "거주 지역",
+        category: "identity",
+      },
+      { id: "major", label: "전공은 어느 분야에 가까운가요?", type: "multi", options: ["인문", "사회", "경영·경제", "교육", "자연과학", "공학", "IT·컴퓨터", "의약·간호", "예체능", "아직 미정"], cardTitle: "전공 분야", category: "identity" },
       { id: "year", label: "학년", type: "single", options: ["1학년", "2학년", "3학년", "4학년", "졸업 예정", "휴학 중"], cardTitle: "학년", category: "current_state" },
       {
         id: "career",
         label: "희망 직무나 관심 분야",
-        type: "text",
-        placeholder: "예: 백엔드 개발자, 아직 정하지 못함",
+        helper: "아직 정하지 못했다면 관심이 가는 분야만 골라도 돼요.",
+        type: "multi",
+        options: ["개발·IT", "데이터·AI", "기획·PM", "디자인·콘텐츠", "마케팅·영업", "금융·회계", "공공기관", "연구·교육", "창업", "아직 미정"],
         cardTitle: "진로 관심 분야",
         category: "objective",
       },
       {
         id: "experience",
         label: "준비 중인 자격증, 기술 또는 경험",
-        type: "text",
-        placeholder: "예: 정보처리기사 준비 중, Java 기초 경험",
+        helper: "현재 하고 있거나 해 본 것을 모두 골라 주세요.",
+        type: "multi",
+        options: ["자격증 준비", "어학 공부", "코딩·도구 학습", "인턴·아르바이트", "팀 프로젝트", "공모전·대외활동", "포트폴리오", "아직 없음"],
         cardTitle: "보유 경험",
         category: "capability",
       },
       {
         id: "studyTime",
-        label: "공부에 사용할 수 있는 시간",
-        type: "single",
-        options: ["하루 1시간 이내", "하루 2~3시간", "하루 4시간 이상", "주말 중심", "일정하지 않음"],
+        label: "공부하기 좋은 시간은 언제인가요?",
+        helper: "가능한 시간을 모두 골라 주세요.",
+        type: "multi",
+        options: ["평일 아침", "공강 시간", "평일 저녁", "주말", "하루 1시간 이내", "일정하지 않음"],
         cardTitle: "학습 가능 시간",
         category: "resource",
       },
@@ -204,22 +231,14 @@ export const surveyDefinitions: Record<PersonaType, SurveyDefinition> = {
         category: "routine",
       },
       {
-        id: "learningStyle",
-        label: "어떤 방식으로 공부할 때 잘 이해되나요?",
-        type: "multi",
-        options: ["개념부터 설명", "예시 중심", "단계별 문제 풀이", "시험 대비 요약", "실습 중심"],
-        defaultValue: ["예시 중심"],
-        cardTitle: "학습 방식",
-        category: "preference",
-      },
-      {
         id: "answerStyle",
-        label: "원하는 답변 형태",
+        label: "공부하거나 답변을 받을 때 어떤 방식이 잘 맞나요?",
+        helper: "이해하기 쉬운 방식과 결과를 정리하는 방식을 함께 골라 주세요.",
         type: "multi",
-        options: ["핵심 요약", "단계별 설명", "표로 비교", "일정표", "우선순위", "과제 문장 다듬기"],
+        options: ["개념부터 차근차근", "예시 중심", "단계별 문제 풀이", "시험 대비 요약", "실습 중심", "핵심부터 요약", "표로 비교", "일정표·계획표", "우선순위 제시", "과제 문장 다듬기"],
         required: true,
-        defaultValue: ["핵심 요약", "우선순위"],
-        cardTitle: "답변 방식",
+        defaultValue: ["예시 중심", "핵심부터 요약"],
+        cardTitle: "학습·답변 방식",
         category: "preference",
       },
     ],
@@ -233,7 +252,7 @@ export const surveyDefinitions: Record<PersonaType, SurveyDefinition> = {
   },
   older_adult: {
     title: "어떤 도움을 받으면 좋을지 알려주세요",
-    intro: "어려운 내용은 쓰지 않아도 괜찮아요. 큰 버튼을 눌러 편하게 알려주세요.",
+    intro: "사는 지역만 짧게 적고, 나머지는 나와 가까운 큰 버튼을 모두 눌러 주세요.",
     fields: [
       {
         id: "purposes",
@@ -245,11 +264,31 @@ export const surveyDefinitions: Record<PersonaType, SurveyDefinition> = {
         cardTitle: "도움받을 영역",
         category: "objective",
       },
+      {
+        id: "region",
+        label: "집을 기준으로 주로 생활하는 지역은 어디인가요?",
+        helper: "정확한 주소는 쓰지 마세요. 시·군·구 정도면 충분해요.",
+        type: "text",
+        placeholder: "예: 수원시 영통구",
+        required: true,
+        cardTitle: "거주 지역",
+        category: "identity",
+      },
       { id: "ageGroup", label: "연령대", type: "single", options: ["50대", "60대", "70대", "80대 이상", "답하지 않음"], cardTitle: "연령대", category: "identity" },
+      {
+        id: "dailyActivities",
+        label: "평소에 자주 하거나 좋아하는 일은 무엇인가요?",
+        helper: "여러 개를 눌러도 괜찮아요.",
+        type: "multi",
+        options: ["산책·운동", "장보기", "병원 방문", "복지관·경로당", "종교·모임", "가족 만나기", "집에서 취미", "여행·나들이"],
+        cardTitle: "평소 활동",
+        category: "routine",
+      },
       {
         id: "mobility",
         label: "외출할 때 어떤 도움이 필요하세요?",
-        type: "single",
+        helper: "해당하는 내용을 모두 눌러 주세요.",
+        type: "multi",
         options: ["혼자 편하게 외출함", "가끔 가족 도움이 필요함", "오래 걷기 어려움", "계단 이용이 어려움", "답하지 않음"],
         cardTitle: "이동 조건",
         category: "hard_limit",
@@ -257,7 +296,8 @@ export const surveyDefinitions: Record<PersonaType, SurveyDefinition> = {
       {
         id: "transport",
         label: "주로 무엇을 타고 이동하세요?",
-        type: "single",
+        helper: "자주 이용하는 것을 모두 눌러 주세요.",
+        type: "multi",
         options: ["도보", "버스", "지하철", "자가용", "택시", "가족 차량"],
         cardTitle: "이동수단",
         category: "resource",
@@ -292,9 +332,9 @@ export const surveyDefinitions: Record<PersonaType, SurveyDefinition> = {
       {
         id: "healthNotes",
         label: "항상 조심해야 할 점이 있나요?",
-        helper: "쓰고 싶지 않으면 비워 두셔도 됩니다.",
-        type: "text",
-        placeholder: "예: 오래 걷기 어렵거나 피해야 하는 음식",
+        helper: "해당하는 내용을 모두 눌러 주세요.",
+        type: "multi",
+        options: ["오래 걷는 일정 피하기", "계단 적은 곳", "중간에 쉴 곳 필요", "음식 주의", "약 복용 시간 고려", "시력·청력 고려", "복잡한 곳 피하기", "특별한 주의 없음"],
         cardTitle: "생활 주의사항",
         category: "hard_limit",
       },
@@ -323,12 +363,20 @@ export function initialPrivacyAnswers(personaType: PersonaType): PrivacyAnswers 
   );
 }
 
+export function toggleSurveyChoice(selected: string[], value: string): string[] {
+  if (selected.includes(value)) return selected.filter((item) => item !== value);
+  if (EXCLUSIVE_SURVEY_CHOICES.includes(value)) return [value];
+  return [...selected.filter((item) => !EXCLUSIVE_SURVEY_CHOICES.includes(item)), value];
+}
+
 export function buildSurveyNarrative(personaType: PersonaType, answers: SurveyAnswers): string {
   const definition = surveyDefinitions[personaType];
   const lines = definition.fields.flatMap((field) => {
     const value = answers[field.id];
-    const content = Array.isArray(value) ? value.filter(Boolean).join(", ") : value?.trim();
-    if (!content || content === "답하지 않음" || content === "특별한 조건 없음") return [];
+    const content = Array.isArray(value)
+      ? value.filter((item) => item && !EXCLUSIVE_SURVEY_CHOICES.includes(item)).join(", ")
+      : value?.trim();
+    if (!content || EXCLUSIVE_SURVEY_CHOICES.includes(content)) return [];
     return [`${field.cardTitle}: ${content}`];
   });
   return [`사용자 유형: ${personaMeta[personaType].label}`, ...lines].join("\n");

@@ -567,7 +567,7 @@ project=진행 중인 작업.
 - 시간·예산·교통은 resource, 반복 일정은 routine으로 분리한다.
 - 시·구·동 수준의 거주 지역과 '대중교통이 편리함', '공원이 가까움' 같은 생활 환경은 identity로 분류한다.
 - 번지·동호수 같은 상세 주소, 건강·장애·가족 정보는 sensitive, 그 외는 보통 normal이다.
-- 최대 8개. 같은 사실은 합친다.`;
+- 최대 12개. 같은 사실은 합치되, 서로 다른 설문 답변은 빠뜨리지 않는다.`;
       const schema = {
         type: 'object',
         properties: {
@@ -593,7 +593,7 @@ project=진행 중인 작업.
         : undefined;
       const drafts = (structured?.drafts || [])
         .filter((draft) => categories.includes(String(draft.category)) && String(draft.content || '').trim())
-        .slice(0, 8)
+        .slice(0, 12)
         .map((draft) => ({
           title: String(draft.title || '나의 정보').trim(),
           category: String(draft.category),
