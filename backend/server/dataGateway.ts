@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
-import { ContextItem, ContextProfile, MemoryCandidate, QueryAuditLog } from '../types.js';
+import { ContextItem, ContextProfile, QueryAuditLog } from '../types.js';
 import { env } from '../config/env.js';
 
 const url = env.supabaseUrl;
@@ -260,23 +260,6 @@ export async function deleteContext(
   if (error) throw error;
 }
 
-export async function persistProposal(
-  user: Awaited<ReturnType<typeof authenticate>>,
-  proposal: { id: string; profileId: string; question: string; candidateIds: string[] },
-) {
-  if (user.local) return;
-  const client = userClient(user.token);
-  const { error } = await client.from('context_proposals').insert({
-    id: proposal.id,
-    user_id: user.id,
-    profile_id: proposal.profileId,
-    question: proposal.question,
-    state: 'AWAITING_APPROVAL',
-    candidate_ids: proposal.candidateIds,
-  });
-  if (error) throw error;
-}
-
 export async function persistAuditLog(
   user: Awaited<ReturnType<typeof authenticate>>,
   input: {
@@ -301,83 +284,6 @@ export async function persistAuditLog(
     raw_answer: input.audit.rawAnswer,
   });
   if (auditError) throw auditError;
-}
-
-export async function persistAnswerArtifacts(
-  user: Awaited<ReturnType<typeof authenticate>>,
-  input: {
-    proposalId: string;
-    profileId: string;
-    approved: ContextItem[];
-    snapshotHash: string;
-    audit: QueryAuditLog;
-  },
-) {
-  if (user.local) return;
-  const client = userClient(user.token);
-  const { error: snapshotError } = await client.from('approval_snapshots').insert({
-    proposal_id: input.proposalId,
-    user_id: user.id,
-    approved_items: input.approved,
-    snapshot_hash: input.snapshotHash,
-  });
-  if (snapshotError) throw snapshotError;
-  const { error: auditError } = await client.from('audit_logs').insert({
-    user_id: user.id,
-    profile_id: input.profileId,
-    proposal_id: input.proposalId,
-    question: input.audit.userQuery,
-    used_contexts: input.approved,
-    snapshot_hash: input.snapshotHash,
-    answer: input.audit.contextBridgeAnswer,
-    raw_answer: input.audit.rawAnswer,
-  });
-  if (auditError) throw auditError;
-  const { error: stateError } = await client
-    .from('context_proposals')
-    .update({ state: 'ANSWERED', updated_at: new Date().toISOString() })
-    .eq('id', input.proposalId)
-    .eq('user_id', user.id)
-    .eq('state', 'AWAITING_APPROVAL');
-  if (stateError) throw stateError;
-}
-
-export async function persistMemoryCandidate(
-  user: Awaited<ReturnType<typeof authenticate>>,
-  proposalId: string,
-  profileId: string,
-  candidate: MemoryCandidate,
-) {
-  if (user.local) return;
-  const client = userClient(user.token);
-  const { error } = await client.from('memory_candidates').insert({
-    id: candidate.id,
-    user_id: user.id,
-    profile_id: profileId,
-    proposal_id: proposalId,
-    label: candidate.label,
-    category: candidate.category,
-    value_text: candidate.content,
-    sensitivity: candidate.privacyLevel,
-    status: candidate.status,
-  });
-  if (error) throw error;
-}
-
-export async function persistMemoryStatus(
-  user: Awaited<ReturnType<typeof authenticate>>,
-  candidateId: string,
-  status: 'SAVED' | 'IGNORED',
-) {
-  if (user.local) return;
-  const client = userClient(user.token);
-  const { error } = await client
-    .from('memory_candidates')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', candidateId)
-    .eq('user_id', user.id)
-    .eq('status', 'PENDING');
-  if (error) throw error;
 }
 
 function fromCardRow(row: any): ContextItem {

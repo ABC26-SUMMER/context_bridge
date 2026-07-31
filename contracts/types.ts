@@ -89,6 +89,9 @@ export interface MemoryCandidate {
   content: string;
   privacyLevel: PrivacyLevel;
   status: MemoryCandidateStatus;
+  /** 새 카드 생성 또는 같은 슬롯의 기존 카드 갱신 */
+  operation?: 'CREATE' | 'UPDATE';
+  updateTargetId?: UUID;
 }
 
 export interface QueryAuditLog {

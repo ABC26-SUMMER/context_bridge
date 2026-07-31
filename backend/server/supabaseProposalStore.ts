@@ -6,8 +6,7 @@ import {
   ExtractedMemory,
   blueprintToContext,
   extractByRules,
-  isSaveWorthyMemory,
-  isDuplicate,
+  selectMemoryCandidates,
   toCandidate,
 } from './memory.js';
 import {
@@ -65,7 +64,6 @@ export class SupabaseProposalStore implements IProposalStore {
       state: 'AWAITING_APPROVAL',
       candidate_ids: evaluations.filter((e) => e.suggested).map((e) => e.contextId),
       snapshot: { contexts: protectedContexts, evaluations },
-      idempotency_key: snapshot.id,
     });
     if (error) throw new Error(`proposal 저장 실패: ${error.message}`);
     return snapshot;
@@ -152,21 +150,13 @@ export class SupabaseProposalStore implements IProposalStore {
     return { proposal: { ...proposal, state: 'APPROVED' }, approved, snapshotHash };
   }
 
-  async complete(proposalId: string, userId: string, answer?: Record<string, unknown>): Promise<void> {
-    if (answer) {
-      const { error } = await this.client
-        .from('context_proposals')
-        .update({ answer })
-        .eq('id', proposalId)
-        .eq('user_id', userId)
-        .eq('state', 'APPROVED');
-      if (error) throw new Error(`답변 저장 실패: ${error.message}`);
-    }
+  async complete(proposalId: string, userId: string): Promise<void> {
     await this.client.rpc('advance_proposal_state', {
       p_proposal_id: proposalId,
       p_expected_state: 'APPROVED',
       p_next_state: 'ANSWERED',
     });
+    void userId;
   }
 
   async fail(proposalId: string, userId: string): Promise<void> {
@@ -181,18 +171,14 @@ export class SupabaseProposalStore implements IProposalStore {
   async extractMemories(
     proposal: ProposalSnapshot,
     extra: ExtractedMemory[] = [],
+    includeRuleFallback = true,
   ): Promise<MemoryCandidate[]> {
-    const merged: ExtractedMemory[] = [];
-    const seen = new Set<string>();
-    for (const mem of [...extra, ...extractByRules(proposal.query)]) {
-      if (!isSaveWorthyMemory(proposal.query, mem)) continue;
-      if (seen.has(mem.label)) continue;
-      if (isDuplicate(mem, proposal.contexts)) continue;
-      seen.add(mem.label);
-      merged.push(mem);
-    }
-    const top = merged.slice(0, 3);
-    const rows = top.map((mem) => {
+    const merged = selectMemoryCandidates(
+      proposal.query,
+      proposal.contexts,
+      includeRuleFallback ? [...extra, ...extractByRules(proposal.query)] : extra,
+    );
+    const rows = merged.map((mem) => {
       const c = toCandidate(mem, proposal.userId, proposal.profileId);
       return {
         id: c.id,
@@ -218,6 +204,8 @@ export class SupabaseProposalStore implements IProposalStore {
       content: r.value_text,
       privacyLevel: r.sensitivity,
       status: 'PENDING',
+      operation: (r.blueprint as any)?.operation || 'CREATE',
+      updateTargetId: (r.blueprint as any)?.updateTargetId,
     }));
   }
 
@@ -226,6 +214,34 @@ export class SupabaseProposalStore implements IProposalStore {
     userId: string,
     action: 'save' | 'ignore',
   ): Promise<ResolveMemoryResult> {
+    // 최신 스키마에서는 상태 변경과 context_cards 생성을 DB 트랜잭션 하나로 처리한다.
+    // 함수가 아직 배포되지 않은 기존 DB만 아래의 호환 경로를 사용한다.
+    const { data: atomic, error: atomicError } = await this.client.rpc('resolve_memory_candidate', {
+      p_candidate_id: id,
+      p_action: action,
+    });
+    if (!atomicError && atomic?.candidate) {
+      const row = atomic.candidate as Record<string, unknown>;
+      return {
+        candidate: {
+          id: String(row.id),
+          label: String(row.label),
+          category: row.category as MemoryCandidate['category'],
+          content: String(row.value_text),
+          privacyLevel: row.sensitivity as MemoryCandidate['privacyLevel'],
+          status: row.status as 'SAVED' | 'IGNORED',
+          userId: String(row.user_id),
+          profileId: String(row.profile_id),
+        },
+        persisted: true,
+      };
+    }
+    const missingAtomicFunction = atomicError &&
+      ['PGRST202', '42883'].includes(String((atomicError as { code?: string }).code || ''));
+    if (atomicError && !missingAtomicFunction) {
+      throw new Error(`기억 후보 원자 저장 실패: ${atomicError.message}`);
+    }
+
     const { data, error } = await this.client
       .from('memory_candidates')
       .select('*')
@@ -264,6 +280,16 @@ export class SupabaseProposalStore implements IProposalStore {
         ? blueprintToContext(data.blueprint as ExtractedMemory)
         : undefined;
     return { candidate, context };
+  }
+
+  async revertMemory(id: string, userId: string): Promise<void> {
+    // 카드 저장 실패 시 후보를 재시도 가능 상태로 되돌린다. SAVED일 때만 전이한다.
+    await this.client
+      .from('memory_candidates')
+      .update({ status: 'PENDING', updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .eq('status', 'SAVED');
   }
 
   async findAnswerByIdempotencyKey(

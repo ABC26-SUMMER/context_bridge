@@ -11,8 +11,7 @@ import {
   ExtractedMemory,
   blueprintToContext,
   extractByRules,
-  isSaveWorthyMemory,
-  isDuplicate,
+  selectMemoryCandidates,
   toCandidate,
 } from './memory.js';
 import { selectDeterministic } from './selection.js';
@@ -130,7 +129,6 @@ export function evaluateContexts(
 
 export class ProposalStore implements IProposalStore {
   private proposals = new Map<string, Proposal>();
-  private answers = new Map<string, Record<string, unknown>>();
   private memories = new Map<
     string,
     MemoryCandidate & { userId: string; profileId: string; blueprint: ExtractedMemory }
@@ -189,12 +187,9 @@ export class ProposalStore implements IProposalStore {
     return proposal;
   }
 
-  async complete(proposalId: string, _userId?: string, answer?: Record<string, unknown>): Promise<void> {
+  async complete(proposalId: string, _userId?: string): Promise<void> {
     const proposal = this.proposals.get(proposalId);
-    if (proposal) {
-      if (answer) this.answers.set(`${proposal.userId}:${proposalId}`, answer);
-      proposal.state = 'ANSWERED';
-    }
+    if (proposal) proposal.state = 'ANSWERED';
   }
 
   async fail(proposalId: string, _userId?: string): Promise<void> {
@@ -202,26 +197,22 @@ export class ProposalStore implements IProposalStore {
     if (proposal?.state === 'APPROVED') proposal.state = 'FAILED';
   }
 
-  async findAnswerByIdempotencyKey(userId: string, key: string): Promise<Record<string, unknown> | null> {
-    return this.answers.get(`${userId}:${key}`) || null;
-  }
-
   /**
    * 질문에서 새 개인 맥락을 추출해 기억 후보로 만든다.
-   * extra: LLM 등 외부 추출기가 뽑은 결과(선택). 규칙 결과와 라벨 기준으로 병합한다.
+   * extra: LLM 등 외부 추출기가 뽑은 결과(선택). 실제 내용 기준으로 병합한다.
    * 이미 프로필에 있는 정보는 제외한다.
    */
-  async extractMemories(proposal: ProposalSnapshot | Proposal, extra: ExtractedMemory[] = []): Promise<MemoryCandidate[]> {
-    const merged: ExtractedMemory[] = [];
-    const seen = new Set<string>();
-    for (const mem of [...extra, ...extractByRules(proposal.query)]) {
-      if (!isSaveWorthyMemory(proposal.query, mem)) continue;
-      if (seen.has(mem.label)) continue;
-      if (isDuplicate(mem, proposal.contexts)) continue;
-      seen.add(mem.label);
-      merged.push(mem);
-    }
-    return merged.slice(0, 3).map((mem) => {
+  async extractMemories(
+    proposal: ProposalSnapshot | Proposal,
+    extra: ExtractedMemory[] = [],
+    includeRuleFallback = true,
+  ): Promise<MemoryCandidate[]> {
+    const merged = selectMemoryCandidates(
+      proposal.query,
+      proposal.contexts,
+      includeRuleFallback ? [...extra, ...extractByRules(proposal.query)] : extra,
+    );
+    return merged.map((mem) => {
       const candidate = toCandidate(mem, proposal.userId, proposal.profileId);
       this.memories.set(candidate.id, candidate);
       const { blueprint: _blueprint, userId: _userId, profileId: _profileId, ...view } = candidate;
@@ -239,5 +230,12 @@ export class ProposalStore implements IProposalStore {
       // 저장 카드의 제목·태그·등급은 추출 blueprint에서 만든다(하드코딩 제거).
       context: action === 'save' ? blueprintToContext(candidate.blueprint) : undefined,
     };
+  }
+
+  async revertMemory(id: string, userId: string): Promise<void> {
+    const candidate = this.memories.get(id);
+    if (candidate && candidate.userId === userId && candidate.status === 'SAVED') {
+      candidate.status = 'PENDING';
+    }
   }
 }

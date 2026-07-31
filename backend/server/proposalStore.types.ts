@@ -54,6 +54,8 @@ export interface ApproveResult {
 export interface ResolveMemoryResult {
   candidate: MemoryCandidate & { userId: string; profileId: string };
   context?: ContextItem;
+  /** Supabase RPC가 카드 생성까지 한 트랜잭션으로 완료했는지 여부 */
+  persisted?: boolean;
 }
 
 export interface IProposalStore {
@@ -70,13 +72,14 @@ export interface IProposalStore {
 
   approve(proposalId: string, userId: string, approvedIds: string[]): Promise<ApproveResult>;
 
-  complete(proposalId: string, userId: string, answer?: Record<string, unknown>): Promise<void>;
+  complete(proposalId: string, userId: string): Promise<void>;
 
   fail(proposalId: string, userId: string): Promise<void>;
 
   extractMemories(
     proposal: ProposalSnapshot,
     extra?: ExtractedMemory[],
+    includeRuleFallback?: boolean,
   ): Promise<MemoryCandidate[]>;
 
   resolveMemory(
@@ -84,6 +87,13 @@ export interface IProposalStore {
     userId: string,
     action: 'save' | 'ignore',
   ): Promise<ResolveMemoryResult>;
+
+  /**
+   * resolveMemory('save')가 후보를 SAVED로 표시한 뒤 카드 저장이 실패하면
+   * 후보를 다시 PENDING으로 되돌려 재시도 가능하게 한다(best-effort).
+   * SAVED가 아니면 아무 것도 하지 않는다.
+   */
+  revertMemory?(id: string, userId: string): Promise<void>;
 
   /** 멱등: 같은 키의 답변이 이미 있으면 반환, 없으면 null. */
   findAnswerByIdempotencyKey?(
