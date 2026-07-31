@@ -41,14 +41,15 @@ export async function loadProfilesForUser(token: string): Promise<UserProfile[]>
   return bootstrap.profiles.map((profile) => mapContractProfile(profile, bootstrap.user.id));
 }
 
-export async function createProfile(token: string, input: ProfileInput): Promise<void> {
-  await createProfileApi(token, {
+export async function createProfile(token: string, input: ProfileInput): Promise<string> {
+  const response = await createProfileApi(token, {
     displayName: input.displayName.trim(),
     personaType: input.personaType,
     name: input.profileName.trim(),
     icon: input.icon.trim() || "✨",
     description: input.description.trim(),
   });
+  return response.profile.id;
 }
 
 export async function updateProfile(

@@ -758,7 +758,7 @@ export async function startServer() {
     app.get('*', (_req, res) => res.sendFile('dist/index.html', { root: '.' }));
   }
   return app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Context Bridge] http://0.0.0.0:${PORT}`);
+    console.log(`[Context Bridge] http://localhost:${PORT}`);
     const missing = assertServerEnv();
     if (missing.length) {
       console.warn(`[환경설정] Supabase 서버 연결 미완료: ${missing.join(', ')}`);

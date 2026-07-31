@@ -232,16 +232,27 @@ export default function App() {
     }
   };
 
-  const handleCreateProfile = async (input: ProfileInput) => {
-    if (!session) return;
+  const handleCreateProfile = async (input: ProfileInput, cards: ContextCardInput[]) => {
+    if (!session) return false;
     setDataSaving(true);
     setDataError("");
+    let createdProfileId = "";
 
     try {
-      await createProfile(session.access_token, input);
-      await refreshUserData();
+      createdProfileId = await createProfile(session.access_token, input);
+      for (const card of cards) {
+        await createContextCard(session.access_token, createdProfileId, card);
+      }
+      await refreshUserData(createdProfileId);
+      return true;
     } catch (error) {
-      setDataError(getErrorMessage(error));
+      if (createdProfileId) {
+        await refreshUserData(createdProfileId);
+        setDataError(`프로필은 만들었지만 일부 정보를 저장하지 못했습니다. 내 정보 화면에서 다시 추가해 주세요. ${getErrorMessage(error)}`);
+      } else {
+        setDataError(getErrorMessage(error));
+      }
+      return false;
     } finally {
       setDataSaving(false);
     }
@@ -491,6 +502,7 @@ export default function App() {
         loading={dataSaving}
         error={dataError}
         onCreate={handleCreateProfile}
+        onStructure={handleStructureContext}
         onLogout={() => void logout()}
       />
     );
