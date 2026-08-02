@@ -23,14 +23,24 @@ export function LoginScreen({ loading, error, notice, onSignIn, onSignUp }: Logi
 
   return (
     <main className="min-h-screen bg-[#f8f7f2] p-7 max-sm:p-4">
-      <section className="mx-auto grid min-h-[calc(100vh-56px)] max-w-5xl grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)] items-center gap-12 max-md:grid-cols-1 max-md:content-center">
+      <section className="mx-auto grid min-h-[calc(100vh-56px)] max-w-6xl grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)] items-center gap-10 max-md:grid-cols-1 max-md:content-center">
         <div>
           <div className="text-xs font-black uppercase text-bridge">Context Bridge</div>
-          <h1 className="mt-3 max-w-3xl text-5xl font-black leading-tight max-sm:text-3xl">
-            내 정보를 내가 선택하는 개인화 AI
+          <h1 className="mt-3 max-w-none text-[2.75rem] font-black leading-[1.18] max-sm:text-3xl">
+            <span className="block whitespace-nowrap max-sm:whitespace-normal">프로필로 나를 이해하고,</span>
+            <span className="block whitespace-nowrap max-sm:whitespace-normal">
+              사용할수록 더 나에게 맞춰지는 <span className="text-bridge">AI</span>
+            </span>
           </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-muted">
-            짧은 질문을 보내도 내 프로필에서 필요한 맥락만 골라 보여줍니다. 승인한 정보만 답변 생성에 사용됩니다.
+          <p className="mt-5 grid max-w-3xl gap-1 text-lg leading-8 text-muted">
+            <span className="whitespace-nowrap max-md:whitespace-normal">프로필과 사용자 맥락을 반영해</span>
+            <span className="whitespace-nowrap max-md:whitespace-normal">
+              누구에게나 같은 AI가 아닌{" "}
+              <span className="px-1 font-semibold text-bridge-dark [background:linear-gradient(transparent_48%,#d9eee8_48%)]">
+                나에게 맞는 AI
+              </span>
+              {"를 제공합니다."}
+            </span>
           </p>
           <div className="mt-8 grid max-w-xl gap-3 border-l-4 border-accent pl-5 text-sm leading-7 text-muted">
             <strong className="text-ink">내 정보는 내 계정에서만 볼 수 있어요.</strong>
