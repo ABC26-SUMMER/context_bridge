@@ -1,6 +1,7 @@
 import type { InteractionRecord } from "../types";
 import { Copy, Volume2 } from "lucide-react";
 import { toSpeechText } from "../services/speechText";
+import { MarkdownText } from "./MarkdownText";
 import { Pill } from "./Pill";
 
 type ContextLogProps = {
@@ -52,9 +53,9 @@ export function ContextLog({ records }: ContextLogProps) {
               </div>
               <div className="rounded-[6px] border border-line bg-[#f8f7f2] p-4">
                 <strong className="block text-sm text-bridge-dark">AI 답변</strong>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-ink">
-                  {record.answer || "저장된 답변이 없습니다."}
-                </p>
+                <div className="mt-2 text-sm leading-7 text-ink">
+                  <MarkdownText content={record.answer || "저장된 답변이 없습니다."} />
+                </div>
               </div>
               {record.answer && (
                 <div className="flex flex-wrap justify-end gap-2">

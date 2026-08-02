@@ -20,6 +20,8 @@ import type { QualityState } from "../services/qualityAnalyzer";
 import { toSpeechText } from "../services/speechText";
 import type { ConversationSession, DemoAccount, DetectedIntent, SelectedContext, UiMode, UserProfile } from "../types";
 import { ElderlyAnswerView } from "./ElderlyAnswerView";
+import { MarkdownText } from "./MarkdownText";
+import { humanizeMemoryLabel } from "../services/labelMapper";
 import { Pill } from "./Pill";
 
 type ChatWorkspaceProps = {
@@ -222,7 +224,7 @@ export function ChatWorkspace({
                     onRetryExplain={() => {}}
                   />
                 ) : (
-                  <div className="whitespace-pre-wrap text-sm leading-7 text-ink">{turn.answer}</div>
+                  <MarkdownText content={turn.answer} className="text-sm leading-7 text-ink whitespace-pre-wrap" />
                 )}
               </AssistantMessage>
             </div>
@@ -355,15 +357,17 @@ export function ChatWorkspace({
           ) : bridgePrompt ? (
             <AssistantMessage eyebrow="답변 생성 완료" title="나의 상황을 반영한 답변">
               <div className="grid gap-4">
-                <div className="whitespace-pre-wrap rounded-[6px] border border-line bg-white p-4 text-sm leading-7 text-ink">
-                  {bridgePrompt}
-                </div>
+                <div className="rounded-[6px] border border-line bg-white p-4 text-sm leading-7 text-ink">
+              <MarkdownText content={bridgePrompt} className="whitespace-pre-wrap" />
+            </div>
                 {rawAnswer && (
                   <details className="rounded-[6px] border border-line bg-[#f8f7f2] p-4">
                     <summary className="cursor-pointer text-sm font-black text-ink">
                       개인화하지 않은 일반 답변과 비교
                     </summary>
-                    <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted">{rawAnswer}</p>
+                    <div className="mt-3 text-sm leading-7 text-muted">
+                      <MarkdownText content={rawAnswer} className="whitespace-pre-wrap" />
+                    </div>
                   </details>
                 )}
                 <div className="grid gap-2 rounded-[6px] border border-[#dce7e3] bg-[#f7fbf9] p-4">
@@ -413,7 +417,7 @@ export function ChatWorkspace({
               <AssistantMessage key={candidate.id} eyebrow="기억 후보" title="이 내용을 다음에도 기억할까요?">
                 <div className="grid gap-3">
                   <div className="rounded-[6px] border border-line bg-[#f8f7f2] p-4">
-                    <strong className="block text-sm text-ink">{candidate.label}</strong>
+                    <strong className="block text-sm text-ink">{humanizeMemoryLabel(candidate.label)}</strong>
                     <span className="mt-1 block text-sm leading-6 text-muted">{candidate.content}</span>
                   </div>
                   {action ? (
