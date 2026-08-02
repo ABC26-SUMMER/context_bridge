@@ -11,6 +11,12 @@ export type {
   EvaluatedContext,
   MemoryCandidate,
   QueryAuditLog,
+  ElderlyAnswerGuide,
+  ElderlyCallout,
+  ElderlyCalloutTone,
+  ElderlyStep,
+  ReexplainElderlyRequest,
+  ReexplainElderlyResponse,
 } from '../contracts/types.js';
 
 import type {

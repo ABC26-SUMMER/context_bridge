@@ -19,7 +19,13 @@ import {
   sanitizeExtractedMemory,
   selectMemoryCandidates,
 } from './backend/server/memory.js';
-import { ContextItem, QueryAuditLog } from './backend/types.js';
+import {
+  ELDERLY_GUIDE_SCHEMA,
+  buildDeterministicElderlyGuide,
+  buildElderlyGuidePrompt,
+  sanitizeElderlyGuide,
+} from './backend/server/elderlyLanguage.js';
+import { ContextItem, ElderlyAnswerGuide, QueryAuditLog } from './backend/types.js';
 import {
   authenticate,
   createProfile,
@@ -553,6 +559,34 @@ export function promptFor(
     : `${historyBlock}[사용자 질문]\n${query}\n\n개인 맥락이 없습니다. 일반적이고 중립적인 안내로, 질문에 직접 답하고 필요한 가정은 명시하며 실행 가능한 다음 단계를 제시하세요.`;
 }
 
+/**
+ * 이미 answerGuard를 통과한 안전한 답변 텍스트를 고령자용 STEP/체크리스트/콜아웃 구조로
+ * 재구성한다. 새 컨텍스트를 조회하지 않으므로 개인정보 노출 경계에 영향이 없다.
+ * generateStructured 실패·오프라인이면 결정론적 폴백을 쓴다(서비스 전면 중단 방지).
+ */
+async function buildElderlyGuide(
+  answerText: string,
+  query: string,
+  live: boolean,
+  generate: Generate,
+  generateStructured: GenerateStructured | undefined,
+  retry?: boolean,
+): Promise<ElderlyAnswerGuide> {
+  const fallback = buildDeterministicElderlyGuide(answerText, query);
+  if (!live) return fallback;
+  const prompt = buildElderlyGuidePrompt(answerText, query, { retry });
+  try {
+    if (generateStructured) {
+      const structured = await generateStructured(prompt, ELDERLY_GUIDE_SCHEMA);
+      return sanitizeElderlyGuide(structured, fallback);
+    }
+    const raw = await generate(`${prompt}\n\nJSON만 출력하라. summary, steps, callouts, checklist, commonMistakes, nextActions, comprehensionPrompt 필드를 반드시 포함하라.`);
+    return sanitizeElderlyGuide(parseJson<unknown>(raw), fallback);
+  } catch {
+    return fallback;
+  }
+}
+
 export interface AppDeps {
   generate?: Generate;
   live?: boolean;
@@ -813,12 +847,14 @@ project=진행 중인 작업.
       temporaryNote,
       bypassAll = false,
       conversationHistory = [],
+      answerMode,
     } = req.body as {
       approvedContextIds?: string[];
       includeRawComparison?: boolean;
       temporaryNote?: string;
       bypassAll?: boolean;
       conversationHistory?: Array<{ role: string; content: string }>;
+      answerMode?: 'standard' | 'elderly_guided';
     };
     const approvedIds = approvedContextIds ?? [];
     const tempNote = temporaryNote;
@@ -886,6 +922,11 @@ project=진행 중인 작업.
         generate,
       });
       const contextBridgeAnswer = guarded.answer;
+      // 고령자 페르소나 전용 재구성. 이미 가드를 통과한 contextBridgeAnswer만 입력으로 쓰므로
+      // 새로운 개인정보 노출 경로를 만들지 않는다. 다른 페르소나는 항상 undefined.
+      const elderlyGuide = answerMode === 'elderly_guided'
+        ? await buildElderlyGuide(contextBridgeAnswer, proposal.query, live, generate, generateStructured)
+        : undefined;
       await store.complete(proposalId, user.id);
       // 기억 추출/후보 저장은 답변의 부가 기능이다. 여기서 실패해도 이미 완성된
       // 답변까지 400으로 버리지 않고 후보만 비워서 반환한다.
@@ -927,6 +968,7 @@ project=진행 중인 작업.
         snapshotHash,
         memoryCandidates,
         auditLog,
+        elderlyGuide,
       };
       completedAnswers.set(proposalId, response);
       return res.json(response);
@@ -940,6 +982,59 @@ project=진행 중인 작업.
       const status = (error as { status?: number }).status === 409 ? 409 : 400;
       return res.status(status).json({
         error: error instanceof Error ? error.message : '답변 생성에 실패했습니다.',
+      });
+    }
+  });
+
+  // 고령자 전용 "다시 설명해주세요". 텍스트를 재포장만 하지 않고, 사용자가 이미 승인한
+  // 카드(approvedContexts)로 답변 자체를 처음부터 다시 생성한다 — 그래야 실제로 달라진
+  // 새 답변이라는 게 눈에 보인다. proposal 승인 상태 머신은 다시 거치지 않는다(같은
+  // 카드 범위를 그대로 재사용하는 것이라 재승인이 필요 없다).
+  app.post('/api/elderly/reexplain', async (req, res) => {
+    const { query, previousAnswer, approvedContexts, conversationHistory = [] } = req.body as {
+      query?: string;
+      previousAnswer?: string;
+      approvedContexts?: ContextItem[];
+      conversationHistory?: Array<{ role: string; content: string }>;
+    };
+    if (typeof query !== 'string' || !query.trim()) {
+      return res.status(400).json({ error: '질문이 필요합니다.' });
+    }
+    if (typeof previousAnswer !== 'string' || !previousAnswer.trim()) {
+      return res.status(400).json({ error: '이전 답변이 필요합니다.' });
+    }
+    if (previousAnswer.length > 8_000) {
+      return res.status(400).json({ error: '이전 답변은 8,000자 이하여야 합니다.' });
+    }
+    if (!Array.isArray(approvedContexts)) {
+      return res.status(400).json({ error: 'approvedContexts는 배열이어야 합니다.' });
+    }
+    try {
+      await authenticate(req.headers.authorization);
+      const trimmedQuery = query.trim();
+      const retryPrompt =
+        promptFor(trimmedQuery, approvedContexts, undefined, Array.isArray(conversationHistory) ? conversationHistory : []) +
+        `\n\n[다시 설명 지시]\n아래 이전 답변과 표현·구성을 다르게, 더 쉽고 구체적인 예시를 들어 처음부터 다시 답변하세요. 같은 문장을 반복하지 마세요.\n\n[이전 답변]\n${previousAnswer.trim()}`;
+      const draft = await generate(retryPrompt);
+      const guarded = await validateAndRepairAnswer({
+        query: trimmedQuery,
+        draft,
+        approved: approvedContexts,
+        unapproved: [],
+        generate,
+      });
+      const elderlyGuide = await buildElderlyGuide(
+        guarded.answer,
+        trimmedQuery,
+        live,
+        generate,
+        generateStructured,
+        true,
+      );
+      return res.json({ elderlyGuide, contextBridgeAnswer: guarded.answer });
+    } catch (error) {
+      return res.status(401).json({
+        error: error instanceof Error ? error.message : '다시 설명하지 못했습니다.',
       });
     }
   });

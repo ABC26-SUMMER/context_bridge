@@ -100,6 +100,7 @@ export type ConversationTurn = {
   rawAnswer?: string;
   approvedContextCount: number;
   createdAt: string;
+  elderlyGuide?: import("../contracts/types").ElderlyAnswerGuide | null;
 };
 
 export type ConversationSession = {

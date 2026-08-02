@@ -15,10 +15,11 @@ import {
   Volume2,
   X,
 } from "lucide-react";
-import type { MemoryCandidate, SelectionMode } from "../../contracts/types";
+import type { ElderlyAnswerGuide, MemoryCandidate, SelectionMode } from "../../contracts/types";
 import type { QualityState } from "../services/qualityAnalyzer";
 import { toSpeechText } from "../services/speechText";
 import type { ConversationSession, DemoAccount, DetectedIntent, SelectedContext, UiMode, UserProfile } from "../types";
+import { ElderlyAnswerView } from "./ElderlyAnswerView";
 import { Pill } from "./Pill";
 
 type ChatWorkspaceProps = {
@@ -42,6 +43,9 @@ type ChatWorkspaceProps = {
   bridgePrompt: string;
   answerCompleted: boolean;
   rawAnswer: string;
+  elderlyGuides: ElderlyAnswerGuide[];
+  reexplaining: boolean;
+  onRetryExplain: () => void;
   quality: QualityState;
   uiMode: UiMode;
   apiError?: string;
@@ -81,6 +85,9 @@ export function ChatWorkspace({
   bridgePrompt,
   answerCompleted,
   rawAnswer,
+  elderlyGuides,
+  reexplaining,
+  onRetryExplain,
   quality,
   uiMode,
   apiError,
@@ -207,7 +214,16 @@ export function ChatWorkspace({
             <div className="contents" key={turn.id}>
               <UserMessage>{turn.question}</UserMessage>
               <AssistantMessage eyebrow="Context Bridge" title="답변">
-                <div className="whitespace-pre-wrap text-sm leading-7 text-ink">{turn.answer}</div>
+                {easy && turn.elderlyGuide ? (
+                  <ElderlyAnswerView
+                    guide={turn.elderlyGuide}
+                    busy={false}
+                    readOnly
+                    onRetryExplain={() => {}}
+                  />
+                ) : (
+                  <div className="whitespace-pre-wrap text-sm leading-7 text-ink">{turn.answer}</div>
+                )}
               </AssistantMessage>
             </div>
           ))}
@@ -318,7 +334,25 @@ export function ChatWorkspace({
             />
           )}
 
-          {bridgePrompt && (
+          {bridgePrompt && easy && elderlyGuides.length > 0 ? (
+            elderlyGuides.map((guide, index) => {
+              const isLatest = index === elderlyGuides.length - 1;
+              return (
+                <AssistantMessage
+                  key={index}
+                  eyebrow={index === 0 ? "답변 생성 완료" : "다시 설명"}
+                  title={index === 0 ? "나의 상황을 반영한 답변" : "새로운 답변을 다시 드립니다"}
+                >
+                  <ElderlyAnswerView
+                    guide={guide}
+                    busy={isLatest && reexplaining}
+                    readOnly={!isLatest}
+                    onRetryExplain={onRetryExplain}
+                  />
+                </AssistantMessage>
+              );
+            })
+          ) : bridgePrompt ? (
             <AssistantMessage eyebrow="답변 생성 완료" title="나의 상황을 반영한 답변">
               <div className="grid gap-4">
                 <div className="whitespace-pre-wrap rounded-[6px] border border-line bg-white p-4 text-sm leading-7 text-ink">
@@ -361,7 +395,7 @@ export function ChatWorkspace({
                 </div>
               </div>
             </AssistantMessage>
-          )}
+          ) : null}
 
           {answerCompleted && !bridgePrompt && !generating && (
             <AssistantMessage

@@ -6,6 +6,8 @@ import type {
   CreateProposalRequest,
   GenerateAnswerRequest,
   ProposalResponse,
+  ReexplainElderlyRequest,
+  ReexplainElderlyResponse,
   ResolveMemoryRequest,
   ResolveMemoryResponse,
   StructuredContextDraft,
@@ -95,5 +97,13 @@ export function structureContext(token: string, text: string) {
     method: "POST",
     token,
     body: { text },
+  });
+}
+
+export function reexplainElderly(token: string, request: ReexplainElderlyRequest) {
+  return apiRequest<ReexplainElderlyResponse>("/elderly/reexplain", {
+    method: "POST",
+    token,
+    body: request,
   });
 }

@@ -158,6 +158,49 @@ export interface GenerateAnswerRequest {
   includeRawComparison?: boolean; // 기본 true. 일반 답변 vs 개인화 답변 비교(데모용)
   temporaryNote?: string;         // 이번 질문에만 쓰는 일회성 메모. DB 저장 안 함.
   conversationHistory?: ConversationMessage[];
+  /** 'elderly_guided'면 이미 가드를 통과한 답변을 고령자용 구조(STEP/체크리스트/콜아웃)로 재구성해 함께 반환한다. */
+  answerMode?: 'standard' | 'elderly_guided';
+}
+
+// ───────────────── 고령자 적응형 답변 (older_adult 페르소나 전용) ─────────────────
+// 새로운 컨텍스트 접근 경로가 아니라, 이미 answerGuard를 통과한 안전한 답변 텍스트를
+// 형식만 재구성한 결과다. 다른 페르소나에는 항상 undefined.
+
+export type ElderlyCalloutTone = 'warning' | 'remember' | 'next' | 'first_action';
+
+export interface ElderlyCallout {
+  tone: ElderlyCalloutTone;
+  text: string;
+}
+
+export interface ElderlyStep {
+  title: string;
+  body: string;
+}
+
+export interface ElderlyAnswerGuide {
+  summary: string;
+  steps: ElderlyStep[];
+  callouts: ElderlyCallout[];
+  checklist: string[];
+  commonMistakes: string[];
+  nextActions: string[];
+  comprehensionPrompt: string;
+}
+
+export interface ReexplainElderlyRequest {
+  query: string;
+  /** 이전 답변 텍스트. 새로 생성할 답변이 똑같은 표현을 반복하지 않도록 참고만 한다. */
+  previousAnswer: string;
+  /** 사용자가 이미 승인한 카드(usedContexts)만 다시 보낸다 — 새 승인 절차 없이 같은 범위로 재생성한다. */
+  approvedContexts: ContextItem[];
+  conversationHistory?: ConversationMessage[];
+}
+
+export interface ReexplainElderlyResponse {
+  elderlyGuide: ElderlyAnswerGuide;
+  /** 새로 생성된 안전한 답변 텍스트(가드 통과 후). 화면의 일반 답변 상태도 함께 갱신할 때 쓴다. */
+  contextBridgeAnswer: string;
 }
 
 export interface ResolveMemoryRequest {
@@ -219,6 +262,8 @@ export interface AnswerResponse {
   snapshotHash: string;
   memoryCandidates: MemoryCandidate[];
   auditLog: QueryAuditLog;
+  /** answerMode==='elderly_guided'일 때만 존재. */
+  elderlyGuide?: ElderlyAnswerGuide;
 }
 
 export interface ResolveMemoryResponse {

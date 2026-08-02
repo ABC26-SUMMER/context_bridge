@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import type { AnswerResponse, MemoryCandidate, SelectionMode } from "../contracts/types";
+import type { AnswerResponse, ContextItem, ElderlyAnswerGuide, MemoryCandidate, SelectionMode } from "../contracts/types";
 import { ChatWorkspace } from "./components/ChatWorkspace";
 import { ContextLog } from "./components/ContextLog";
 import { LoginScreen } from "./components/LoginScreen";
@@ -14,7 +14,13 @@ import {
   signOut,
   signUpWithPassword,
 } from "./services/authService";
-import { createProposal, generateAnswer, resolveMemory, structureContext } from "./services/contractApi";
+import {
+  createProposal,
+  generateAnswer,
+  reexplainElderly,
+  resolveMemory,
+  structureContext,
+} from "./services/contractApi";
 import {
   getInitialApprovals,
   mapAuditLog,
@@ -80,6 +86,11 @@ export default function App() {
   const [bridgeAnswer, setBridgeAnswer] = useState("");
   const [answerCompleted, setAnswerCompleted] = useState(false);
   const [rawAnswer, setRawAnswer] = useState("");
+  // 재설명(다시 설명해주세요)마다 새 항목을 뒤에 추가한다 — 기존 답변은 그대로 두고
+  // 새 답변을 새 채팅 메시지로 쌓는다. 마지막 항목만 상호작용(재설명·이해확인) 가능하다.
+  const [elderlyGuides, setElderlyGuides] = useState<ElderlyAnswerGuide[]>([]);
+  const [approvedContexts, setApprovedContexts] = useState<ContextItem[]>([]);
+  const [reexplaining, setReexplaining] = useState(false);
   const [memoryCandidates, setMemoryCandidates] = useState<MemoryCandidate[]>([]);
   const [memoryResolvingId, setMemoryResolvingId] = useState("");
   const [memoryActions, setMemoryActions] = useState<Record<string, "save" | "ignore">>({});
@@ -408,6 +419,9 @@ export default function App() {
     setBridgeAnswer("");
     setAnswerCompleted(false);
     setRawAnswer("");
+    setElderlyGuides([]);
+    setApprovedContexts([]);
+    setReexplaining(false);
     setMemoryCandidates([]);
     setMemoryResolvingId("");
     setMemoryActions({});
@@ -467,6 +481,8 @@ export default function App() {
     setBridgeAnswer("");
     setAnswerCompleted(false);
     setRawAnswer("");
+    setElderlyGuides([]);
+    setApprovedContexts([]);
     setMemoryCandidates([]);
 
     try {
@@ -506,6 +522,8 @@ export default function App() {
       setBridgeAnswer("");
       setAnswerCompleted(false);
       setRawAnswer("");
+      setElderlyGuides([]);
+      setApprovedContexts([]);
       setMemoryCandidates([]);
     }
   };
@@ -523,6 +541,7 @@ export default function App() {
         approvedContextIds: approved.map((field) => field.contextId || field.key),
         includeRawComparison: true,
         conversationHistory: recentConversationHistory,
+        answerMode: currentProfile.personaType === "older_adult" ? "elderly_guided" : "standard",
       });
 
       applyAnswer(answer);
@@ -538,6 +557,7 @@ export default function App() {
           rawAnswer: answer.rawAnswer || "",
           approvedContextCount: approved.length,
           createdAt: now,
+          elderlyGuide: answer.elderlyGuide || null,
         };
         const exists = conversation.turns.some((item) => item.id === turnId);
         return {
@@ -570,9 +590,32 @@ export default function App() {
     setBridgeAnswer(answer.contextBridgeAnswer);
     setAnswerCompleted(true);
     setRawAnswer(answer.rawAnswer || "");
+    setElderlyGuides(answer.elderlyGuide ? [answer.elderlyGuide] : []);
+    setApprovedContexts(answer.usedContexts);
     setMemoryCandidates(answer.memoryCandidates);
     setMemoryActions({});
     setQualityMode("generated");
+  };
+
+  const reexplain = async () => {
+    if (!session || reexplaining || !submittedQuestion) return;
+    setReexplaining(true);
+    setApiError("");
+    try {
+      const { elderlyGuide: nextGuide, contextBridgeAnswer } = await reexplainElderly(session.access_token, {
+        query: submittedQuestion,
+        previousAnswer: bridgeAnswer,
+        approvedContexts,
+        conversationHistory: recentConversationHistory,
+      });
+      setBridgeAnswer(contextBridgeAnswer);
+      // 기존 답변을 덮어쓰지 않고 새 채팅 메시지로 뒤에 추가한다.
+      setElderlyGuides((current) => [...current, nextGuide]);
+    } catch (error) {
+      setApiError(getErrorMessage(error));
+    } finally {
+      setReexplaining(false);
+    }
   };
 
   const resolveMemoryCandidate = async (candidateId: string, action: "save" | "ignore") => {
@@ -659,6 +702,9 @@ export default function App() {
             bridgePrompt={bridgeAnswer}
             answerCompleted={answerCompleted}
             rawAnswer={rawAnswer}
+            elderlyGuides={elderlyGuides}
+            reexplaining={reexplaining}
+            onRetryExplain={() => void reexplain()}
             quality={quality}
             uiMode={uiMode}
             apiError={apiError}
