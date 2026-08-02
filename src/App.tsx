@@ -431,6 +431,8 @@ export default function App() {
     setSubmittedQuestion("");
     setCurrentTurnId("");
     setQualityMode("idle");
+    setConversationNotice("대화를 초기화했습니다.");
+    window.setTimeout(() => setConversationNotice(""), 3000);
   };
 
   const startNewConversation = () => {
@@ -738,6 +740,7 @@ export default function App() {
               onStructureContext={handleStructureContext}
               onUpdateCard={handleUpdateCard}
               onDeleteCard={handleDeleteCard}
+                easy={easy}
             />
           </div>
         )}

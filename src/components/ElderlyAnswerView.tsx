@@ -20,6 +20,8 @@ type ElderlyAnswerViewProps = {
   onRetryExplain: () => void;
   /** 대화 기록(과거 턴)처럼 다시 생성 요청을 걸 수 없는 경우 true. 이해 확인 버튼을 숨긴다. */
   readOnly?: boolean;
+  /** UI를 고령자 모드(easy)로 크게 표시할지 여부 */
+  easy?: boolean;
 };
 
 const CALLOUT_META: Record<ElderlyCalloutTone, { label: string; icon: typeof AlertTriangle; className: string }> = {
@@ -56,7 +58,7 @@ async function shareWithFamily(guide: ElderlyAnswerGuide) {
   window.alert("답변 내용을 복사했어요. 가족에게 붙여넣기 해서 보내주세요.");
 }
 
-export function ElderlyAnswerView({ guide, busy, onRetryExplain, readOnly = false }: ElderlyAnswerViewProps) {
+export function ElderlyAnswerView({ guide, busy, onRetryExplain, readOnly = false, easy = false }: ElderlyAnswerViewProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [understood, setUnderstood] = useState<"yes" | "no" | null>(null);
   const steps = guide.steps.length ? guide.steps : [{ title: "STEP 1", body: guide.summary }];
@@ -69,13 +71,19 @@ export function ElderlyAnswerView({ guide, busy, onRetryExplain, readOnly = fals
     onRetryExplain();
   };
 
+  const containerClass = easy ? "grid gap-6 text-[34px] leading-[1.6] text-ink" : "grid gap-5 text-[26px] leading-[1.9] text-ink";
+  const sectionPadding = easy ? "p-8" : "p-6";
+  const controlBtnClass = easy
+    ? "inline-flex min-h-18 items-center gap-3 rounded-[8px] border border-line bg-white px-6 text-xl font-black text-ink"
+    : "inline-flex min-h-14 items-center gap-2 rounded-[6px] border border-line bg-white px-5 text-lg font-black text-ink";
+
   return (
-    <div className="grid gap-5 text-[26px] leading-[1.9] text-ink">
+    <div className={containerClass}>
       <section className="grid gap-3 border border-line bg-white p-6">
         <div className="flex items-center justify-between gap-3">
           <span className="text-base font-black uppercase text-bridge">핵심만 먼저</span>
           <button
-            className="inline-flex min-h-14 items-center gap-2 rounded-[6px] bg-bridge px-5 text-lg font-black text-white"
+            className={`inline-flex ${easy ? "min-h-18 px-6 text-xl" : "min-h-14 px-5 text-lg"} items-center gap-2 rounded-[6px] bg-bridge font-black text-white`}
             type="button"
             onClick={() => speak(guide.summary)}
           >
@@ -96,22 +104,22 @@ export function ElderlyAnswerView({ guide, busy, onRetryExplain, readOnly = fals
         <p>{step.body}</p>
         <div className="flex flex-wrap justify-between gap-3">
           <button
-            className="inline-flex min-h-14 items-center gap-2 rounded-[6px] border border-line bg-white px-5 text-lg font-black text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            className={`${controlBtnClass} disabled:cursor-not-allowed disabled:opacity-40`}
             type="button"
             disabled={isFirst}
             onClick={() => setStepIndex((current) => Math.max(0, current - 1))}
           >
-            <ArrowLeft size={22} />
+            <ArrowLeft size={easy ? 26 : 22} />
             이전 단계
           </button>
           <button
-            className="inline-flex min-h-14 items-center gap-2 rounded-[6px] border border-line bg-white px-5 text-lg font-black text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            className={`${controlBtnClass} disabled:cursor-not-allowed disabled:opacity-40`}
             type="button"
             disabled={isLast}
             onClick={() => setStepIndex((current) => Math.min(steps.length - 1, current + 1))}
           >
             다음 단계
-            <ArrowRight size={22} />
+            <ArrowRight size={easy ? 26 : 22} />
           </button>
         </div>
       </section>
@@ -122,13 +130,13 @@ export function ElderlyAnswerView({ guide, busy, onRetryExplain, readOnly = fals
             const meta = CALLOUT_META[callout.tone];
             const Icon = meta.icon;
             return (
-              <div key={`${callout.tone}-${index}`} className={`flex items-start gap-3 border p-5 ${meta.className}`}>
-                <Icon size={26} className="mt-1 shrink-0" />
-                <div>
-                  <strong className="block text-lg font-black">{meta.label}</strong>
-                  <p className="mt-1">{callout.text}</p>
-                </div>
-              </div>
+                <div key={`${callout.tone}-${index}`} className={`flex items-start gap-3 border p-5 ${meta.className}`}>
+                    <Icon size={easy ? 32 : 26} className="mt-1 shrink-0" />
+                    <div>
+                      <strong className="block text-lg font-black">{meta.label}</strong>
+                      <p className="mt-1">{callout.text}</p>
+                    </div>
+                  </div>
             );
           })}
         </section>
@@ -144,7 +152,7 @@ export function ElderlyAnswerView({ guide, busy, onRetryExplain, readOnly = fals
           <ol className="grid gap-2">
             {guide.commonMistakes.map((item, index) => (
               <li key={item} className="flex items-start gap-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#122824] text-lg font-black text-[#f8d7ad]">
+                <span className={`grid ${easy ? "h-12 w-12" : "h-9 w-9"} shrink-0 place-items-center rounded-full bg-[#122824] text-lg font-black text-[#f8d7ad]`}>
                   {index + 1}
                 </span>
                 <span className="pt-1">{item}</span>
@@ -159,7 +167,7 @@ export function ElderlyAnswerView({ guide, busy, onRetryExplain, readOnly = fals
       )}
 
       {!readOnly && (
-        <section className="grid gap-4 border border-line bg-white p-6">
+        <section className={`grid gap-4 border border-line bg-white ${sectionPadding}`}>
           {understood === "yes" ? (
             <p className="text-lg font-black text-bridge-dark">
               <Check className="mr-2 inline" size={22} />
@@ -173,19 +181,19 @@ export function ElderlyAnswerView({ guide, busy, onRetryExplain, readOnly = fals
               </strong>
               <div className="flex flex-wrap gap-3">
                 <button
-                  className="inline-flex min-h-14 items-center gap-2 rounded-[6px] border-2 border-line bg-white px-5 text-lg font-black text-ink"
+                  className={`${controlBtnClass} border-2 border-line bg-white`}
                   type="button"
                   onClick={() => setUnderstood("yes")}
                 >
                   ○ 이해했어요
                 </button>
                 <button
-                  className="inline-flex min-h-14 items-center gap-2 rounded-[6px] border-2 border-accent bg-[#fff6eb] px-5 text-lg font-black text-ink disabled:cursor-not-allowed disabled:opacity-50"
+                  className={`${controlBtnClass} border-2 border-accent bg-[#fff6eb] disabled:cursor-not-allowed disabled:opacity-50`}
                   type="button"
                   disabled={busy}
                   onClick={askRetry}
                 >
-                  {busy ? <LoaderCircle className="animate-spin" size={20} /> : null}
+                  {busy ? <LoaderCircle className="animate-spin" size={easy ? 24 : 20} /> : null}
                   ○ 다시 설명해주세요
                 </button>
               </div>

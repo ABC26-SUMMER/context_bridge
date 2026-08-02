@@ -75,10 +75,13 @@ const categoryOptions: Array<[ContextCategory, string]> = [
   ["soft_limit", "가능하면 고려"], ["relationship", "가족·관계"],
 ];
 
-export function ProfileManager(props: ProfileManagerProps) {
+type ProfileManagerPropsExtended = ProfileManagerProps & { easy?: boolean };
+
+export function ProfileManager(props: ProfileManagerPropsExtended) {
   const {
     profiles, profileId, saving, error, onProfileChange, onUpdateProfile, onCreateCard,
     onCreateCards, onStructureContext, onUpdateCard, onDeleteCard,
+    easy,
   } = props;
   const profile = profiles.find((item) => item.id === profileId) ?? profiles[0];
   const personaType = normalizePersona(profile.personaType);
@@ -176,14 +179,14 @@ export function ProfileManager(props: ProfileManagerProps) {
 
   return (
     <section className="mx-auto max-w-7xl pb-14">
-      <header className="flex flex-wrap items-end justify-between gap-5 border-b border-line pb-6">
+      <header className={`flex flex-wrap items-end justify-between gap-5 border-b border-line pb-6 ${easy ? "py-6" : ""}`}>
         <div>
           <div className="text-xs font-black uppercase text-bridge">My profile</div>
-          <h2 className="mt-2 text-4xl font-black leading-tight max-sm:text-3xl">나를 이해하는 프로필</h2>
-          <p className="mt-2 text-sm leading-7 text-muted">AI가 기억하고 있는 나의 모습입니다.</p>
+          <h2 className={`mt-2 ${easy ? "text-6xl" : "text-4xl"} font-black leading-tight max-sm:text-3xl`}>나를 이해하는 프로필</h2>
+          <p className={`mt-2 ${easy ? "text-lg" : "text-sm"} leading-7 text-muted`}>AI가 기억하고 있는 나의 모습입니다.</p>
         </div>
-        <button className="inline-flex min-h-12 items-center justify-center gap-2 bg-bridge px-5 text-sm font-black text-white hover:bg-bridge-dark max-sm:w-full" type="button" onClick={openCreateCard}>
-          <Plus size={18} /> 새로운 정보 추가
+        <button className={`inline-flex ${easy ? "min-h-14 px-6 text-lg" : "min-h-12 px-5 text-sm"} items-center justify-center gap-2 bg-bridge font-black text-white hover:bg-bridge-dark max-sm:w-full`} type="button" onClick={openCreateCard}>
+          <Plus size={easy ? 22 : 18} /> 새로운 정보 추가
         </button>
       </header>
 
@@ -192,17 +195,17 @@ export function ProfileManager(props: ProfileManagerProps) {
       <section className="mt-7 grid border border-line bg-white lg:grid-cols-[320px_minmax(0,1fr)]">
         <div className="border-b border-line p-7 lg:border-b-0 lg:border-r">
           <div className="flex items-start justify-between gap-3">
-            <span className="grid h-20 w-20 place-items-center bg-[#122824] text-[#f8d7ad]"><PersonaIcon size={32} /></span>
-            <button className="grid h-10 w-10 place-items-center border border-line hover:border-bridge" type="button" title="프로필 수정" aria-label="프로필 수정" onClick={() => { setEditingProfile((current) => !current); setCardFormOpen(false); }}>
-              {editingProfile ? <X size={17} /> : <Edit3 size={17} />}
+            <span className={`${easy ? "grid h-28 w-28" : "grid h-20 w-20"} place-items-center bg-[#122824] text-[#f8d7ad]`}><PersonaIcon size={easy ? 44 : 32} /></span>
+            <button className={`${easy ? "grid h-12 w-12" : "grid h-10 w-10"} place-items-center border border-line hover:border-bridge`} type="button" title="프로필 수정" aria-label="프로필 수정" onClick={() => { setEditingProfile((current) => !current); setCardFormOpen(false); }}>
+              {editingProfile ? <X size={easy ? 20 : 17} /> : <Edit3 size={easy ? 20 : 17} />}
             </button>
           </div>
-          <h3 className="mt-5 text-3xl font-black">{profile.name}</h3>
+          <h3 className={`mt-5 ${easy ? "text-5xl" : "text-3xl"} font-black`}>{profile.name}</h3>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="border border-[#bed6d0] bg-[#eef8f5] px-2 py-1 text-xs font-black text-bridge-dark">{persona.label}</span>
-            <span className="text-sm font-bold text-muted">{profile.profileName}</span>
+            <span className={`border border-[#bed6d0] bg-[#eef8f5] px-2 py-1 ${easy ? "text-sm" : "text-xs"} font-black text-bridge-dark`}>{persona.label}</span>
+            <span className={`${easy ? "text-lg" : "text-sm"} font-bold text-muted`}>{profile.profileName}</span>
           </div>
-          <p className="mt-5 text-sm leading-7 text-muted">{profile.description || persona.description}</p>
+          <p className={`mt-5 ${easy ? "text-lg leading-8" : "text-sm leading-7"} text-muted`}>{profile.description || persona.description}</p>
           {profiles.length > 1 && (
             <label className="relative mt-5 block">
               <span className="sr-only">프로필 선택</span>
@@ -226,12 +229,12 @@ export function ProfileManager(props: ProfileManagerProps) {
           </div>
           <div className="mt-5 grid gap-px bg-line sm:grid-cols-2">
             {snapshots.map(({ label, field, icon: Icon }) => (
-              <article key={label} className="min-h-36 bg-[#fbfbf8] p-5">
-                <div className="flex items-center gap-2 text-bridge"><Icon size={17} /><span className="text-xs font-black">{label}</span></div>
+              <article key={label} className={`min-h-36 bg-[#fbfbf8] p-5 ${easy ? "" : ""}`}>
+                <div className="flex items-center gap-2 text-bridge"><Icon size={easy ? 20 : 17} /><span className={`${easy ? "text-sm" : "text-xs"} font-black`}>{label}</span></div>
                 {field ? (
-                  <><strong className="mt-4 block text-lg leading-6">{field.label}</strong><p className="mt-2 line-clamp-2 text-sm leading-6 text-muted">{field.value}</p></>
+                  <><strong className={`mt-4 block ${easy ? "text-2xl" : "text-lg"} leading-6`}>{field.label}</strong><p className={`mt-2 line-clamp-2 ${easy ? "text-lg" : "text-sm"} leading-6 text-muted`}>{field.value}</p></>
                 ) : (
-                  <button className="mt-4 text-left text-sm font-bold text-muted underline decoration-line underline-offset-4" type="button" onClick={openCreateCard}>아직 알려주지 않은 정보예요</button>
+                  <button className={`mt-4 text-left ${easy ? "text-lg" : "text-sm"} font-bold text-muted underline decoration-line underline-offset-4`} type="button" onClick={openCreateCard}>아직 알려주지 않은 정보예요</button>
                 )}
               </article>
             ))}
@@ -275,19 +278,19 @@ export function ProfileManager(props: ProfileManagerProps) {
       )}
 
       <section className="mt-10">
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-4">
+        <div className={`flex flex-wrap items-end justify-between gap-4 border-b border-line pb-4 ${easy ? "gap-6" : ""}`}>
           <div>
-            <span className="text-xs font-black uppercase text-bridge">My story</span>
-            <h3 className="mt-2 text-2xl font-black">나의 이야기</h3>
-            <p className="mt-1 text-sm leading-6 text-muted">지금까지 알려준 나의 모습들을 모아봤어요.</p>
+            <span className={`font-black uppercase text-bridge ${easy ? "text-sm" : "text-xs"}`}>My story</span>
+            <h3 className={`mt-2 font-black ${easy ? "text-4xl" : "text-2xl"}`}>나의 이야기</h3>
+            <p className={`mt-1 ${easy ? "text-lg" : "text-sm"} leading-7 text-muted`}>지금까지 알려준 나의 모습들을 모아봤어요.</p>
           </div>
-          <button className={`inline-flex min-h-11 items-center gap-2 border px-4 text-sm font-black ${managing ? "border-bridge bg-[#eef8f5] text-bridge-dark" : "border-line bg-white"}`} type="button" onClick={() => { setManaging((current) => !current); setFilter("all"); }}>
-            {managing ? <X size={16} /> : <Edit3 size={16} />}{managing ? "정리 끝내기" : "정보 정리하기"}
+          <button className={`inline-flex ${easy ? "min-h-12 px-5 text-base" : "min-h-11 px-4 text-sm"} items-center gap-2 border font-black ${managing ? "border-bridge bg-[#eef8f5] text-bridge-dark" : "border-line bg-white"}`} type="button" onClick={() => { setManaging((current) => !current); setFilter("all"); }}>
+            {managing ? <X size={easy ? 18 : 16} /> : <Edit3 size={easy ? 18 : 16} />}{managing ? "정리 끝내기" : "정보 정리하기"}
           </button>
         </div>
 
         {profile.fields.length === 0 ? (
-          <div className="mt-6 border border-dashed border-line bg-white px-6 py-14 text-center"><BrainCircuit className="mx-auto text-bridge" size={30} /><strong className="mt-4 block text-xl">아직 들려준 이야기가 없어요</strong><p className="mt-2 text-sm text-muted">나에 대해 하나씩 알려주세요.</p><button className="mt-5 min-h-11 bg-bridge px-5 text-sm font-black text-white" type="button" onClick={openCreateCard}>첫 이야기 들려주기</button></div>
+          <div className={`mt-6 border border-dashed border-line bg-white px-6 py-14 text-center ${easy ? "text-lg" : ""}`}><BrainCircuit className="mx-auto text-bridge" size={easy ? 36 : 30} /><strong className={`mt-4 block font-black ${easy ? "text-3xl" : "text-xl"}`}>아직 들려준 이야기가 없어요</strong><p className={`mt-2 ${easy ? "text-lg" : "text-sm"} text-muted`}>나에 대해 하나씩 알려주세요.</p><button className={`mt-5 ${easy ? "min-h-14 px-6 text-base" : "min-h-11 px-5 text-sm"} bg-bridge font-black text-white`} type="button" onClick={openCreateCard}>첫 이야기 들려주기</button></div>
         ) : managing ? (
           <div className="mt-6 grid gap-7 lg:grid-cols-[220px_minmax(0,1fr)]">
             <aside>
@@ -303,7 +306,7 @@ export function ProfileManager(props: ProfileManagerProps) {
                 const fields = grouped[group.key];
                 if (!fields.length) return null;
                 const Icon = group.icon;
-                return <section key={group.key} className="border border-line bg-white"><div className="flex items-center gap-3 border-b border-line bg-[#f7f8f5] px-5 py-4"><span className="grid h-9 w-9 place-items-center bg-[#e7f1ee] text-bridge"><Icon size={17} /></span><div><h4 className="font-black">{group.title}</h4><p className="mt-0.5 text-xs text-muted">{group.description}</p></div><span className="ml-auto text-xs font-black text-muted">{fields.length}개</span></div><div className="divide-y divide-line">{fields.map((field) => <ContextRow key={field.key} field={field} saving={saving} deleting={deleteTargetId === (field.contextId || field.key)} onToggle={() => void updateField(field, { enabled: !field.enabled })} onPrivacyChange={(sensitivity) => void updateField(field, { sensitivity })} onEdit={() => openEditCard(field)} onDeleteRequest={() => setDeleteTargetId(field.contextId || field.key)} onDeleteCancel={() => setDeleteTargetId(null)} onDeleteConfirm={() => void onDeleteCard(field.contextId || field.key).then((deleted) => { if (deleted) setDeleteTargetId(null); })} />)}</div></section>;
+                return <section key={group.key} className="border border-line bg-white"><div className={`flex items-center gap-3 border-b border-line bg-[#f7f8f5] ${easy ? "px-6 py-5" : "px-5 py-4"}`}><span className={`grid ${easy ? "h-11 w-11" : "h-9 w-9"} place-items-center bg-[#e7f1ee] text-bridge`}><Icon size={easy ? 20 : 17} /></span><div><h4 className={`font-black ${easy ? "text-xl" : ""}`}>{group.title}</h4><p className={`mt-0.5 ${easy ? "text-sm" : "text-xs"} text-muted`}>{group.description}</p></div><span className={`ml-auto ${easy ? "text-sm" : "text-xs"} font-black text-muted`}>{fields.length}개</span></div><div className="divide-y divide-line">{fields.map((field) => <ContextRow key={field.key} field={field} easy={easy} saving={saving} deleting={deleteTargetId === (field.contextId || field.key)} onToggle={() => void updateField(field, { enabled: !field.enabled })} onPrivacyChange={(sensitivity) => void updateField(field, { sensitivity })} onEdit={() => openEditCard(field)} onDeleteRequest={() => setDeleteTargetId(field.contextId || field.key)} onDeleteCancel={() => setDeleteTargetId(null)} onDeleteConfirm={() => void onDeleteCard(field.contextId || field.key).then((deleted) => { if (deleted) setDeleteTargetId(null); })} />)}</div></section>;
               })}
               {Object.values(grouped).every((fields) => fields.length === 0) && <div className="border border-dashed border-line bg-white p-10 text-center text-sm text-muted">여기에 해당하는 정보가 없어요.</div>}
             </div>
@@ -314,7 +317,7 @@ export function ProfileManager(props: ProfileManagerProps) {
               const fields = profile.fields.filter((field) => field.enabled && field.sensitivity !== "confidential" && groupForCategory(field.category || "profile") === group.key);
               if (!fields.length) return null;
               const Icon = group.icon;
-              return <section key={group.key} className="border-t-2 border-[#183c36] bg-white px-5 py-5"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center bg-[#e7f1ee] text-bridge"><Icon size={18} /></span><div><h4 className="text-lg font-black">{group.title}</h4><p className="text-xs text-muted">{group.description}</p></div></div><div className="mt-5 grid gap-5">{fields.map((field) => <div key={field.key}><span className="text-xs font-black text-bridge">{field.label}</span><p className="mt-1.5 text-sm leading-7 text-ink">{field.value}</p></div>)}</div></section>;
+              return <section key={group.key} className={`border-t-2 border-[#183c36] bg-white ${easy ? "px-6 py-6" : "px-5 py-5"}`}><div className="flex items-center gap-3"><span className={`grid ${easy ? "h-11 w-11" : "h-10 w-10"} place-items-center bg-[#e7f1ee] text-bridge`}><Icon size={easy ? 20 : 18} /></span><div><h4 className={`font-black ${easy ? "text-xl" : "text-lg"}`}>{group.title}</h4><p className={`mt-1 ${easy ? "text-sm" : "text-xs"} text-muted`}>{group.description}</p></div></div><div className="mt-5 grid gap-5">{fields.map((field) => <div key={field.key}><span className={`font-black ${easy ? "text-base" : "text-xs"} text-bridge`}>{field.label}</span><p className={`mt-1.5 ${easy ? "text-lg leading-8" : "text-sm leading-7"} text-ink`}>{field.value}</p></div>)}</div></section>;
             })}
           </div>
         )}
@@ -323,15 +326,15 @@ export function ProfileManager(props: ProfileManagerProps) {
   );
 }
 
-function ContextRow({ field, saving, deleting, onToggle, onPrivacyChange, onEdit, onDeleteRequest, onDeleteCancel, onDeleteConfirm }: { field: ProfileField; saving: boolean; deleting: boolean; onToggle: () => void; onPrivacyChange: (level: PrivacyLevel) => void; onEdit: () => void; onDeleteRequest: () => void; onDeleteCancel: () => void; onDeleteConfirm: () => void }) {
+function ContextRow({ field, easy, saving, deleting, onToggle, onPrivacyChange, onEdit, onDeleteRequest, onDeleteCancel, onDeleteConfirm }: { field: ProfileField; easy?: boolean; saving: boolean; deleting: boolean; onToggle: () => void; onPrivacyChange: (level: PrivacyLevel) => void; onEdit: () => void; onDeleteRequest: () => void; onDeleteCancel: () => void; onDeleteConfirm: () => void }) {
   const privacy = PRIVACY_META[field.sensitivity];
   return (
-    <article className={`grid gap-4 px-5 py-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center ${field.enabled ? "" : "bg-zinc-50 text-muted"}`}>
-      <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="text-base">{field.label}</strong><span className="text-xs font-bold text-bridge">{categoryLabels[field.category || "profile"]}</span></div><p className="mt-1.5 break-words text-sm leading-6 text-muted">{field.value}</p></div>
+    <article className={`grid gap-4 ${easy ? "px-6 py-6" : "px-5 py-5"} md:grid-cols-[minmax(0,1fr)_auto] md:items-center ${field.enabled ? "" : "bg-zinc-50 text-muted"}`}>
+      <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className={`font-black ${easy ? "text-lg" : "text-base"}`}>{field.label}</strong><span className={`font-bold ${easy ? "text-sm" : "text-xs"} text-bridge`}>{categoryLabels[field.category || "profile"]}</span></div><p className={`mt-1.5 break-words ${easy ? "text-lg leading-8" : "text-sm leading-6"} text-muted`}>{field.value}</p></div>
       <div className="flex flex-wrap items-center gap-2 md:justify-end">
-        <button className={`inline-flex min-h-9 items-center gap-1.5 border px-2.5 text-xs font-black ${field.enabled ? "border-[#a8ccc4] bg-[#eef8f5] text-bridge-dark" : "border-line bg-white text-muted"}`} type="button" role="switch" aria-checked={field.enabled} disabled={saving} onClick={onToggle}>{field.enabled ? <Eye size={14} /> : <EyeOff size={14} />}{field.enabled ? "사용 중" : "꺼짐"}</button>
-        <label className="relative"><span className="sr-only">{field.label} AI 사용 기준</span><select className={`min-h-9 appearance-none border py-1 pl-2.5 pr-8 text-xs font-black ${privacy.className}`} value={field.sensitivity} disabled={saving} title={privacy.description} onChange={(event) => onPrivacyChange(event.target.value as PrivacyLevel)}><PrivacyOptions /></select><ChevronDown className="pointer-events-none absolute right-2 top-2.5" size={13} /></label>
-        {deleting ? <><button className="min-h-9 border border-line px-3 text-xs font-black" type="button" onClick={onDeleteCancel}>취소</button><button className="min-h-9 bg-red-800 px-3 text-xs font-black text-white" type="button" disabled={saving} onClick={onDeleteConfirm}>삭제</button></> : <><button className="grid h-9 w-9 place-items-center border border-line hover:border-bridge" type="button" title="수정" aria-label={`${field.label} 수정`} onClick={onEdit}><Edit3 size={14} /></button><button className="grid h-9 w-9 place-items-center border border-line text-red-800 hover:border-red-400" type="button" title="삭제" aria-label={`${field.label} 삭제`} onClick={onDeleteRequest}><Trash2 size={14} /></button></>}
+        <button className={`inline-flex ${easy ? "min-h-10 px-3 text-sm" : "min-h-9 px-2.5 text-xs"} items-center gap-1.5 border font-black ${field.enabled ? "border-[#a8ccc4] bg-[#eef8f5] text-bridge-dark" : "border-line bg-white text-muted"}`} type="button" role="switch" aria-checked={field.enabled} disabled={saving} onClick={onToggle}>{field.enabled ? <Eye size={easy ? 16 : 14} /> : <EyeOff size={easy ? 16 : 14} />}{field.enabled ? "사용 중" : "꺼짐"}</button>
+        <label className="relative"><span className="sr-only">{field.label} AI 사용 기준</span><select className={`min-h-9 appearance-none border py-1 pl-2.5 pr-8 ${easy ? "text-sm" : "text-xs"} font-black ${privacy.className}`} value={field.sensitivity} disabled={saving} title={privacy.description} onChange={(event) => onPrivacyChange(event.target.value as PrivacyLevel)}><PrivacyOptions /></select><ChevronDown className="pointer-events-none absolute right-2 top-2.5" size={13} /></label>
+        {deleting ? <><button className={`min-h-9 ${easy ? "px-4" : "px-3"} border border-line ${easy ? "text-sm" : "text-xs"} font-black`} type="button" onClick={onDeleteCancel}>취소</button><button className={`min-h-9 ${easy ? "px-4" : "px-3"} bg-red-800 ${easy ? "text-sm" : "text-xs"} font-black text-white`} type="button" disabled={saving} onClick={onDeleteConfirm}>삭제</button></> : <><button className={`grid ${easy ? "h-10 w-10" : "h-9 w-9"} place-items-center border border-line hover:border-bridge`} type="button" title="수정" aria-label={`${field.label} 수정`} onClick={onEdit}><Edit3 size={easy ? 16 : 14} /></button><button className={`grid ${easy ? "h-10 w-10" : "h-9 w-9"} place-items-center border border-line text-red-800 hover:border-red-400`} type="button" title="삭제" aria-label={`${field.label} 삭제`} onClick={onDeleteRequest}><Trash2 size={easy ? 16 : 14} /></button></>}
       </div>
     </article>
   );

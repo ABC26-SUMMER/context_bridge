@@ -201,7 +201,7 @@ export function ChatWorkspace({
       <div className="flex-1 overflow-y-auto px-6 py-7 max-sm:px-4">
         <div className="mx-auto grid max-w-3xl gap-5">
           {!previousTurns.length && !submittedQuestion && (
-            <AssistantMessage
+            <AssistantMessage easy={easy}
               eyebrow="새로운 대화"
               title={`${account.displayName}님, 무엇을 도와드릴까요?`}
               body="질문을 보내면 필요한 내 정보만 찾아 보여드릴게요. 대화는 아래로 계속 이어집니다."
@@ -214,23 +214,24 @@ export function ChatWorkspace({
 
           {previousTurns.map((turn) => (
             <div className="contents" key={turn.id}>
-              <UserMessage>{turn.question}</UserMessage>
-              <AssistantMessage eyebrow="Context Bridge" title="답변">
+              <UserMessage easy={easy}>{turn.question}</UserMessage>
+              <AssistantMessage easy={easy} eyebrow="Context Bridge" title="답변">
                 {easy && turn.elderlyGuide ? (
                   <ElderlyAnswerView
                     guide={turn.elderlyGuide}
                     busy={false}
                     readOnly
+                    easy={easy}
                     onRetryExplain={() => {}}
                   />
                 ) : (
-                  <MarkdownText content={turn.answer} className="text-sm leading-7 text-ink whitespace-pre-wrap" />
+                  <MarkdownText content={turn.answer} className={`${easy ? "text-lg leading-8" : "text-sm leading-7"} text-ink whitespace-pre-wrap`} />
                 )}
               </AssistantMessage>
             </div>
           ))}
 
-          {submittedQuestion && <UserMessage>{submittedQuestion}</UserMessage>}
+          {submittedQuestion && <UserMessage easy={easy}>{submittedQuestion}</UserMessage>}
 
           {analyzing && (
             <LoadingMessage
@@ -264,7 +265,7 @@ export function ChatWorkspace({
           )}
 
           {intent && (
-            <AssistantMessage eyebrow="내 정보 확인" title={`AI가 이 질문에 필요한 정보 ${approvalPool.length}개를 찾았어요`}>
+            <AssistantMessage easy={easy} eyebrow="내 정보 확인" title={`AI가 이 질문에 필요한 정보 ${approvalPool.length}개를 찾았어요`}>
               <div className="grid gap-4">
                 <div className="rounded-[6px] border border-[#cfe0dc] bg-[#f6fbf9] p-4">
                   <strong className="text-bridge-dark">답변에 사용할 정보를 직접 골라 주세요.</strong>
@@ -340,7 +341,7 @@ export function ChatWorkspace({
             elderlyGuides.map((guide, index) => {
               const isLatest = index === elderlyGuides.length - 1;
               return (
-                <AssistantMessage
+                <AssistantMessage easy={easy}
                   key={index}
                   eyebrow={index === 0 ? "답변 생성 완료" : "다시 설명"}
                   title={index === 0 ? "나의 상황을 반영한 답변" : "새로운 답변을 다시 드립니다"}
@@ -348,25 +349,26 @@ export function ChatWorkspace({
                   <ElderlyAnswerView
                     guide={guide}
                     busy={isLatest && reexplaining}
-                    readOnly={!isLatest}
+                      readOnly={!isLatest}
+                      easy={easy}
                     onRetryExplain={onRetryExplain}
                   />
                 </AssistantMessage>
               );
             })
-          ) : bridgePrompt ? (
-            <AssistantMessage eyebrow="답변 생성 완료" title="나의 상황을 반영한 답변">
+              ) : bridgePrompt ? (
+                <AssistantMessage easy={easy} eyebrow="답변 생성 완료" title="나의 상황을 반영한 답변">
               <div className="grid gap-4">
-                <div className="rounded-[6px] border border-line bg-white p-4 text-sm leading-7 text-ink">
-              <MarkdownText content={bridgePrompt} className="whitespace-pre-wrap" />
-            </div>
+                <div className="rounded-[6px] border border-line bg-white p-4 text-ink">
+                <MarkdownText content={bridgePrompt} className={`${easy ? "text-lg leading-8" : "text-sm leading-7"} whitespace-pre-wrap`} />
+              </div>
                 {rawAnswer && (
                   <details className="rounded-[6px] border border-line bg-[#f8f7f2] p-4">
                     <summary className="cursor-pointer text-sm font-black text-ink">
                       개인화하지 않은 일반 답변과 비교
                     </summary>
-                    <div className="mt-3 text-sm leading-7 text-muted">
-                      <MarkdownText content={rawAnswer} className="whitespace-pre-wrap" />
+                    <div className="mt-3 text-muted">
+                      <MarkdownText content={rawAnswer} className={`${easy ? "text-lg leading-8" : "text-sm leading-7"} whitespace-pre-wrap`} />
                     </div>
                   </details>
                 )}
@@ -402,7 +404,7 @@ export function ChatWorkspace({
           ) : null}
 
           {answerCompleted && !bridgePrompt && !generating && (
-            <AssistantMessage
+            <AssistantMessage easy={easy}
               eyebrow="빈 응답"
               title="답변을 받지 못했습니다"
               body="잠시 후 다시 만들기를 눌러 주세요."
@@ -414,7 +416,7 @@ export function ChatWorkspace({
             const resolving = memoryResolvingId === candidate.id;
 
             return (
-              <AssistantMessage key={candidate.id} eyebrow="기억 후보" title="이 내용을 다음에도 기억할까요?">
+              <AssistantMessage key={candidate.id} easy={easy} eyebrow="기억 후보" title="이 내용을 다음에도 기억할까요?">
                 <div className="grid gap-3">
                   <div className="rounded-[6px] border border-line bg-[#f8f7f2] p-4">
                     <strong className="block text-sm text-ink">{humanizeMemoryLabel(candidate.label)}</strong>
@@ -469,8 +471,8 @@ export function ChatWorkspace({
             ))}
           </div>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 rounded-[8px] border border-line bg-white p-2 shadow-[0_18px_48px_rgba(18,40,36,0.08)]">
-            {easy && intent && (
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-2 rounded-[8px] border border-line bg-white p-2 shadow-[0_18px_48px_rgba(18,40,36,0.08)]">
+            {!easy && intent && (
               <button
                 className="grid h-12 w-12 place-items-center rounded-[6px] border border-line bg-white"
                 type="button"
@@ -492,7 +494,7 @@ export function ChatWorkspace({
                 }
               }}
             />
-            <div className="flex gap-2">
+            <div className="flex items-end gap-2">
               {!intent && (
                 <button
                   className={`${easy ? "h-14 px-5 text-base" : "h-12 px-4 text-sm"} inline-flex items-center gap-2 rounded-[6px] border-2 border-bridge bg-[#eef8f5] font-black text-bridge`}
@@ -505,12 +507,13 @@ export function ChatWorkspace({
                 </button>
               )}
               <button
-                className="grid h-12 w-12 place-items-center rounded-[6px] border border-line bg-zinc-100 text-ink transition hover:border-bridge"
+                className={`${easy ? "grid h-14 w-14" : "grid h-12 w-12"} place-items-center rounded-[8px] border border-line bg-zinc-100 text-ink transition hover:border-bridge`}
                 type="button"
                 aria-label="초기화"
+                title="초기화 (대화 재설정)"
                 onClick={onReset}
               >
-                <RefreshCw size={18} />
+                <RefreshCw size={easy ? 20 : 18} />
               </button>
               {intent && !bridgePrompt ? (
                 <button
@@ -566,29 +569,31 @@ function AssistantMessage({
   title,
   body,
   children,
+  easy,
 }: {
   eyebrow: string;
   title: string;
   body?: string;
   children?: React.ReactNode;
+  easy?: boolean;
 }) {
   return (
     <article className="grid grid-cols-[38px_minmax(0,1fr)] gap-3">
-      <div className="grid h-9 w-9 place-items-center rounded-full bg-[#122824] text-xs font-black text-[#f8d7ad]">CB</div>
-      <div className="rounded-[8px] border border-line bg-white p-4 shadow-[0_12px_36px_rgba(18,40,36,0.05)]">
-        <div className="mb-2 text-xs font-black uppercase text-bridge">{eyebrow}</div>
-        <h3 className="text-lg font-black text-ink">{title}</h3>
-        {body && <p className="mt-2 text-sm leading-7 text-muted">{body}</p>}
+      <div className={`grid ${easy ? "h-12 w-12" : "h-9 w-9"} place-items-center rounded-full bg-[#122824] text-xs font-black text-[#f8d7ad]`}>CB</div>
+      <div className={`rounded-[8px] border border-line bg-white p-4 shadow-[0_12px_36px_rgba(18,40,36,0.05)] ${easy ? "text-lg" : ""}`}>
+        <div className={`mb-2 ${easy ? "text-sm" : "text-xs"} font-black uppercase text-bridge`}>{eyebrow}</div>
+        <h3 className={`${easy ? "text-2xl" : "text-lg"} font-black text-ink`}>{title}</h3>
+        {body && <p className={`mt-2 ${easy ? "text-lg" : "text-sm"} leading-7 text-muted`}>{body}</p>}
         {children && <div className="mt-4">{children}</div>}
       </div>
     </article>
   );
 }
 
-function UserMessage({ children }: { children: React.ReactNode }) {
+function UserMessage({ children, easy }: { children: React.ReactNode; easy?: boolean }) {
   return (
-    <article className="ml-auto grid max-w-[86%] justify-items-end gap-2">
-      <div className="rounded-[18px] rounded-br-[6px] bg-[#116a67] px-4 py-3 text-sm font-bold leading-7 text-white shadow-[0_12px_30px_rgba(17,106,103,0.22)]">
+    <article className={`ml-auto grid max-w-[86%] justify-items-end gap-2`}> 
+      <div className={`rounded-[18px] rounded-br-[6px] bg-[#116a67] px-4 py-3 font-bold leading-7 text-white shadow-[0_12px_30px_rgba(17,106,103,0.22)] ${easy ? "text-xl py-5 px-6" : "text-sm px-4 py-3"}`}>
         {children}
       </div>
     </article>
