@@ -108,6 +108,9 @@ export function ChatWorkspace({
   onReset,
 }: ChatWorkspaceProps) {
   const easy = uiMode === "easy";
+  const inputGridClass = !easy && intent
+    ? "grid-cols-[auto_minmax(0,1fr)_auto]"
+    : "grid-cols-[minmax(0,1fr)_auto]";
   const approvalPool = [...selected, ...sensitive];
   const approved = approvalPool.filter((field) => approvals[field.key]);
   const approvedCount = approved.length;
@@ -471,7 +474,7 @@ export function ChatWorkspace({
             ))}
           </div>
 
-          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-2 rounded-[8px] border border-line bg-white p-2 shadow-[0_18px_48px_rgba(18,40,36,0.08)]">
+          <div className={`grid ${inputGridClass} items-end gap-2 rounded-[8px] border border-line bg-white p-2 shadow-[0_18px_48px_rgba(18,40,36,0.08)]`}>
             {!easy && intent && (
               <button
                 className="grid h-12 w-12 place-items-center rounded-[6px] border border-line bg-white"
@@ -483,7 +486,7 @@ export function ChatWorkspace({
               </button>
             )}
             <textarea
-              className="max-h-40 min-h-12 resize-none rounded-[6px] border-0 bg-transparent px-3 py-3 text-sm leading-6 text-ink outline-none placeholder:text-muted"
+              className={`max-h-40 w-full min-w-0 resize-none rounded-[6px] border-0 bg-transparent px-3 py-3 text-ink outline-none placeholder:text-muted ${easy ? "min-h-14 text-lg leading-7" : "min-h-12 text-sm leading-6"}`}
               value={question}
               placeholder="질문을 입력하세요"
               onChange={(event) => onQuestionChange(event.target.value)}
@@ -494,7 +497,7 @@ export function ChatWorkspace({
                 }
               }}
             />
-            <div className="flex items-end gap-2">
+            <div className="flex shrink-0 items-end justify-end gap-2">
               {!intent && (
                 <button
                   className={`${easy ? "h-14 px-5 text-base" : "h-12 px-4 text-sm"} inline-flex items-center gap-2 rounded-[6px] border-2 border-bridge bg-[#eef8f5] font-black text-bridge`}
@@ -517,7 +520,7 @@ export function ChatWorkspace({
               </button>
               {intent && !bridgePrompt ? (
                 <button
-                  className="inline-flex h-12 items-center gap-2 rounded-[6px] bg-accent px-4 text-sm font-black text-[#2b180b] transition disabled:cursor-not-allowed disabled:opacity-45 max-sm:px-3"
+                  className={`${easy ? "h-14 px-5 text-base" : "h-12 px-4 text-sm"} inline-flex items-center gap-2 rounded-[6px] bg-accent font-black text-[#2b180b] transition disabled:cursor-not-allowed disabled:opacity-45 max-sm:px-3`}
                   type="button"
                   disabled={!canGenerate}
                   onClick={onGenerate}
@@ -529,7 +532,7 @@ export function ChatWorkspace({
                 </button>
               ) : (
                 <button
-                  className="grid h-12 w-12 place-items-center rounded-[6px] bg-bridge text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+                  className={`${easy ? "grid h-14 w-14" : "grid h-12 w-12"} place-items-center rounded-[6px] bg-bridge text-white transition disabled:cursor-not-allowed disabled:opacity-50`}
                   type="button"
                   aria-label="다음"
                   disabled={analyzing || generating || !question.trim()}
