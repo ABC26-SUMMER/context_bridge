@@ -116,10 +116,15 @@ export function ChatWorkspace({
   const approvedCount = approved.length;
   const canGenerate = Boolean(intent && !generating);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const latestAnswerRef = useRef<HTMLDivElement | null>(null);
   const activeConversation = conversations.find((conversation) => conversation.id === conversationId);
   const previousTurns = activeConversation?.turns.filter((turn) => turn.id !== currentTurnId) || [];
 
   useEffect(() => {
+    if (bridgePrompt) {
+      latestAnswerRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+      return;
+    }
     bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [intent, bridgePrompt, apiError, generating, previousTurns.length]);
 
@@ -345,8 +350,8 @@ export function ChatWorkspace({
             elderlyGuides.map((guide, index) => {
               const isLatest = index === elderlyGuides.length - 1;
               return (
+                <div ref={isLatest ? latestAnswerRef : undefined} className="scroll-mt-5" key={index}>
                 <AssistantMessage easy={easy}
-                  key={index}
                   eyebrow={index === 0 ? "답변 생성 완료" : "다시 설명"}
                   title={index === 0 ? "나의 상황을 반영한 답변" : "새로운 답변을 다시 드립니다"}
                 >
@@ -359,9 +364,11 @@ export function ChatWorkspace({
                     onRetryExplain={onRetryExplain}
                   />
                 </AssistantMessage>
+                </div>
               );
             })
               ) : bridgePrompt ? (
+                <div ref={latestAnswerRef} className="scroll-mt-5">
                 <AssistantMessage easy={easy} eyebrow="답변 생성 완료" title="나의 상황을 반영한 답변">
               <div className="grid gap-4">
                 <div className="rounded-[6px] border border-line bg-white p-4 text-ink">
@@ -406,6 +413,7 @@ export function ChatWorkspace({
                 </div>
               </div>
             </AssistantMessage>
+                </div>
           ) : null}
 
           {answerCompleted && !bridgePrompt && !generating && (

@@ -113,11 +113,13 @@ function cleanSummaryText(text: string) {
     .trim();
 }
 
+const SECTION_HEADING_PATTERN =
+  /^(추천\s*(장소|내용|후보|목록|비교)?|실행 단계|순서대로|주의점|조심할 점|실수하기 쉬운 부분|추가 확인|확인 질문|준비물|준비할 것|다음 행동|다음에 할 일)/;
+const RECOMMENDATION_REASON_PATTERN = /^(추천|선택)\s*이유\s*[:：]\s*(.+)$/;
+const RECOMMENDATION_TARGET_PATTERN = /^(추천|선택)\s*대상\s*[:：]\s*(.+)$/;
+
 function isSectionHeading(line: string) {
-  return (
-    /^\d+\.\s+/.test(line) ||
-    /^(추천 장소|추천 내용|실행 단계|순서대로|주의점|조심할 점|실수하기 쉬운 부분|추가 확인|확인 질문|준비물|준비할 것|다음 행동|다음에 할 일)/.test(line)
-  );
+  return SECTION_HEADING_PATTERN.test(sectionTitle(line));
 }
 
 function sectionTitle(line: string) {
@@ -184,7 +186,7 @@ function parseRichAnswer(answerText?: string): RichAnswer | null {
       .replace(/^\s*\d+[.)]\s*/, "")
       .replace(/^\s*\d+순위\s*[:：]\s*/, "")
       .replace(/^\s*\d+단계\s*[:：]\s*/, "")
-      .replace(/^(추천 이유|주의점|원리|확인 질문)\s*[:：]\s*/, "$1: ")
+      .replace(/^(추천 이유|선택 이유|주의점|원리|확인 질문)\s*[:：]\s*/, "$1: ")
       .trim();
 
     if (compact) current.items.push(compact);
@@ -230,33 +232,39 @@ function isCautionSection(title: string) {
   return /주의|조심|실수|확인/.test(title) && !isQuestionSection(title);
 }
 
+function sectionLooksLikeRecommendation(section: RichAnswerSection) {
+  return isRecommendationSection(section.title) || section.items.some((item) =>
+    RECOMMENDATION_REASON_PATTERN.test(item) || RECOMMENDATION_TARGET_PATTERN.test(item),
+  );
+}
+
 function parseRecommendationCards(items: string[]): RecommendationCard[] {
   const cards: RecommendationCard[] = [];
   let current: RecommendationCard | null = null;
 
   for (const item of items) {
-    const reason = item.match(/^추천\s*이유\s*[:：]\s*(.+)$/);
+    const reason = item.match(RECOMMENDATION_REASON_PATTERN);
     if (reason) {
       if (!current) {
         current = { title: "추천 이유", details: [] };
         cards.push(current);
       }
-      current.reason = reason[1].trim();
+      current.reason = reason[2].trim();
       continue;
     }
 
-    const target = item.match(/^추천\s*대상\s*[:：]\s*(.+)$/);
+    const target = item.match(RECOMMENDATION_TARGET_PATTERN);
     if (target) {
       if (!current) {
         current = { title: "추천 대상", details: [] };
         cards.push(current);
       }
-      current.target = target[1].trim();
+      current.target = target[2].trim();
       continue;
     }
 
-    const [rawTitle, rawReason] = item.split(/\s+추천\s*이유\s*[:：]\s*/);
-    const [title, rawTarget] = rawTitle.split(/\s+추천\s*대상\s*[:：]\s*/);
+    const [rawTitle, rawReason] = item.split(/\s+(?:추천|선택)\s*이유\s*[:：]\s*/);
+    const [title, rawTarget] = rawTitle.split(/\s+(?:추천|선택)\s*대상\s*[:：]\s*/);
     current = {
       title: title.replace(/^\d+[.)]\s*/, "").replace(/^\d+순위\s*[:：]\s*/, "").trim(),
       reason: rawReason?.trim(),
@@ -352,13 +360,15 @@ export function ElderlyAnswerView({ guide, answerText, busy, onRetryExplain, rea
 
       {richAnswer ? (
         <section className="grid gap-3">
-          {richAnswer.sections.map((section, sectionIndex) => (
+          {richAnswer.sections.map((section, sectionIndex) => {
+            const recommendation = sectionLooksLikeRecommendation(section);
+            return (
             <article key={`${section.title}-${sectionIndex}`} className={`grid gap-3 border border-line bg-white ${sectionPadding}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <strong className="text-lg font-black text-bridge-dark">{getSectionTitle(section.title)}</strong>
-                <span className="border border-line bg-[#f8f7f2] px-2 py-1 text-sm font-black text-muted">{getSectionLabel(section.title)}</span>
+                <strong className="text-lg font-black text-bridge-dark">{recommendation ? "추천 내용" : getSectionTitle(section.title)}</strong>
+                <span className="border border-line bg-[#f8f7f2] px-2 py-1 text-sm font-black text-muted">{recommendation ? "추천" : getSectionLabel(section.title)}</span>
               </div>
-              {isRecommendationSection(section.title) ? (
+              {recommendation ? (
                 <div className="grid gap-3">
                   {parseRecommendationCards(section.items).map((card, index) => (
                     <div key={`${card.title}-${index}`} className="grid gap-2 border-t border-line pt-3 first:border-t-0 first:pt-0">
@@ -406,7 +416,8 @@ export function ElderlyAnswerView({ guide, answerText, busy, onRetryExplain, rea
                 </ul>
               )}
             </article>
-          ))}
+            );
+          })}
         </section>
       ) : (
         <section className={`grid gap-4 border border-line bg-white ${sectionPadding}`}>
