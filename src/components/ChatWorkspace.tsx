@@ -222,6 +222,7 @@ export function ChatWorkspace({
                 {easy && turn.elderlyGuide ? (
                   <ElderlyAnswerView
                     guide={turn.elderlyGuide}
+                    answerText={turn.answer}
                     busy={false}
                     readOnly
                     easy={easy}
@@ -351,6 +352,7 @@ export function ChatWorkspace({
                 >
                   <ElderlyAnswerView
                     guide={guide}
+                    answerText={isLatest ? bridgePrompt : undefined}
                     busy={isLatest && reexplaining}
                       readOnly={!isLatest}
                       easy={easy}

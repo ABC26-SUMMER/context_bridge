@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDeterministicElderlyGuide,
+  cleanElderlyText,
   sanitizeElderlyGuide,
   simplifyForElderly,
 } from './elderlyLanguage.js';
@@ -40,6 +41,17 @@ describe('buildDeterministicElderlyGuide', () => {
   it('빈 답변에서도 항상 최소 1개의 STEP을 만든다', () => {
     const guide = buildDeterministicElderlyGuide('', '질문');
     expect(guide.steps.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('마크다운 답변을 고령자 화면용 일반 문장으로 정리한다', () => {
+    const guide = buildDeterministicElderlyGuide(
+      '### 1. 결론 및 핵심 원리\n**핵심:** 메뉴 고르기 → 결제하기 누르기 → 카드 꽂기\n---',
+      '터치 화면 기계 쓰는 법',
+    );
+
+    const combined = [guide.summary, ...guide.steps.map((step) => step.body)].join('\n');
+    expect(combined).not.toMatch(/[#*_`]|---/);
+    expect(guide.steps.map((step) => step.body)).toEqual(['메뉴 고르기', '결제하기 누르기', '카드 꽂기']);
   });
 });
 
@@ -106,5 +118,35 @@ describe('sanitizeElderlyGuide', () => {
       fallback,
     );
     expect(guide.callouts.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('LLM이 긴 마크다운 문단을 step에 넣으면 짧은 단계로 다시 나눈다', () => {
+    const guide = sanitizeElderlyGuide(
+      {
+        summary: '**핵심:** 메뉴, 결제, 카드만 기억하세요.',
+        steps: [
+          {
+            title: 'STEP 1',
+            body: '### 1. 결론 및 핵심 원리\n**핵심:** 메뉴 고르기 → 결제하기 누르기 → 카드 꽂기\n---\n### 2. 상세 설명',
+          },
+        ],
+        callouts: [],
+        checklist: [],
+        commonMistakes: [],
+        nextActions: [],
+        comprehensionPrompt: '',
+      },
+      fallback,
+    );
+
+    expect(guide.summary).toBe('메뉴, 결제, 카드만 기억하세요.');
+    expect(guide.steps.map((step) => step.body)).toEqual(['메뉴 고르기', '결제하기 누르기', '카드 꽂기', '상세 설명']);
+    expect(guide.steps.every((step) => !/[#*_`]|---/.test(step.body))).toBe(true);
+  });
+});
+
+describe('cleanElderlyText', () => {
+  it('화면에 보이면 안 되는 마크다운 기호를 제거한다', () => {
+    expect(cleanElderlyText('### 제목\n**중요:** `확인`하세요.\n---')).toBe('제목\n중요: 확인하세요.');
   });
 });
