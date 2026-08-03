@@ -73,6 +73,30 @@ type RichAnswer = {
   contextItems: string[];
 };
 
+type RecommendationCard = {
+  title: string;
+  reason?: string;
+  target?: string;
+  details: string[];
+};
+
+const CONTEXT_LABELS: Record<string, string> = {
+  identity: "내 정보",
+  capability: "할 수 있는 것",
+  objective: "목표",
+  preference: "선호",
+  hardlimit: "꼭 지킬 점",
+  softlimit: "고려할 점",
+  resource: "이용 가능한 것",
+  routine: "일정",
+  relationship: "가족과 관계",
+  currentstate: "현재 상황",
+  project: "진행 중인 일",
+  profile: "기본 정보",
+  goal: "목표",
+  constraint: "제약 조건",
+};
+
 function normalizeAnswerText(text: string) {
   return cleanDisplayText(text)
     .replace(/\r/g, "")
@@ -82,8 +106,18 @@ function normalizeAnswerText(text: string) {
     .join("\n");
 }
 
+function cleanSummaryText(text: string) {
+  return cleanDisplayText(text)
+    .replace(/(^|[\s,])\d+\)\s*/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function isSectionHeading(line: string) {
-  return /^\d+\.\s+/.test(line) || /^(추천 장소|실행 단계|순서대로|주의점|추가 확인|확인 질문|준비물|다음 행동)/.test(line);
+  return (
+    /^\d+\.\s+/.test(line) ||
+    /^(추천 장소|추천 내용|실행 단계|순서대로|주의점|조심할 점|실수하기 쉬운 부분|추가 확인|확인 질문|준비물|준비할 것|다음 행동|다음에 할 일)/.test(line)
+  );
 }
 
 function sectionTitle(line: string) {
@@ -103,20 +137,35 @@ function parseRichAnswer(answerText?: string): RichAnswer | null {
   const contextItems: string[] = [];
   let current: RichAnswerSection | null = null;
   let inContext = false;
+  let lastContextIndex = -1;
 
   for (const line of lines) {
-    if (/^반영된 맥락/.test(line)) {
+    if (line.includes("반영된 맥락")) {
       inContext = true;
       current = null;
       continue;
     }
 
     if (inContext) {
-      const contextLine = line
-        .replace(/^\[[^\]]+\]\s*/, "")
-        .replace(/^→\s*/, "")
-        .trim();
-      if (contextLine) contextItems.push(contextLine);
+      const categoryMatch = line.match(/^\[([^\]]+)\]\s*(.+)$/);
+      if (categoryMatch) {
+        const key = categoryMatch[1].replace(/[_\s-]/g, "").toLowerCase();
+        const label = CONTEXT_LABELS[key] || "반영한 정보";
+        const [value, reason] = categoryMatch[2].split(/\s*→\s*/).map((part) => cleanDisplayText(part)).filter(Boolean);
+        if (value) {
+          contextItems.push(reason ? `${label}: ${value}\n이렇게 반영했어요: ${reason}` : `${label}: ${value}`);
+          lastContextIndex = contextItems.length - 1;
+        }
+        continue;
+      }
+
+      const reason = cleanDisplayText(line.replace(/^→\s*/, ""));
+      if (reason && lastContextIndex >= 0) {
+        contextItems[lastContextIndex] = `${contextItems[lastContextIndex]}\n이렇게 반영했어요: ${reason}`;
+      } else if (reason) {
+        contextItems.push(reason);
+        lastContextIndex = contextItems.length - 1;
+      }
       continue;
     }
 
@@ -132,6 +181,7 @@ function parseRichAnswer(answerText?: string): RichAnswer | null {
     }
 
     const compact = line
+      .replace(/^\s*\d+[.)]\s*/, "")
       .replace(/^\s*\d+순위\s*[:：]\s*/, "")
       .replace(/^\s*\d+단계\s*[:：]\s*/, "")
       .replace(/^(추천 이유|주의점|원리|확인 질문)\s*[:：]\s*/, "$1: ")
@@ -140,7 +190,7 @@ function parseRichAnswer(answerText?: string): RichAnswer | null {
     if (compact) current.items.push(compact);
   }
 
-  const summary = summaryLines.join(" ").trim();
+  const summary = cleanSummaryText(summaryLines.join(" "));
   const usefulSections = sections
     .map((section) => ({ ...section, items: section.items.filter(Boolean) }))
     .filter((section) => section.items.length);
@@ -150,17 +200,73 @@ function parseRichAnswer(answerText?: string): RichAnswer | null {
 }
 
 function getSectionLabel(title: string) {
+  if (/주의|조심|실수|확인|질문/.test(title)) return "확인";
   if (/추천|비교|장소/.test(title)) return "추천";
   if (/실행|순서|단계/.test(title)) return "방법";
-  if (/주의|확인/.test(title)) return "확인";
   return "안내";
 }
 
 function getSectionTitle(title: string) {
+  if (/확인\s*질문|질문/.test(title)) return "더 정확히 알려면";
+  if (/주의|조심|실수|확인/.test(title)) return "조심하거나 확인할 점";
   if (/추천|비교|장소/.test(title)) return "추천 내용";
   if (/실행|순서|단계/.test(title)) return "순서대로 하세요";
-  if (/주의|확인/.test(title)) return "조심하거나 확인할 점";
   return title;
+}
+
+function isRecommendationSection(title: string) {
+  return /추천|비교|장소/.test(title) && !/주의|확인|질문/.test(title);
+}
+
+function isStepSection(title: string) {
+  return /실행|순서|단계/.test(title) && !isRecommendationSection(title);
+}
+
+function isQuestionSection(title: string) {
+  return /확인\s*질문|질문/.test(title);
+}
+
+function isCautionSection(title: string) {
+  return /주의|조심|실수|확인/.test(title) && !isQuestionSection(title);
+}
+
+function parseRecommendationCards(items: string[]): RecommendationCard[] {
+  const cards: RecommendationCard[] = [];
+  let current: RecommendationCard | null = null;
+
+  for (const item of items) {
+    const reason = item.match(/^추천\s*이유\s*[:：]\s*(.+)$/);
+    if (reason) {
+      if (!current) {
+        current = { title: "추천 이유", details: [] };
+        cards.push(current);
+      }
+      current.reason = reason[1].trim();
+      continue;
+    }
+
+    const target = item.match(/^추천\s*대상\s*[:：]\s*(.+)$/);
+    if (target) {
+      if (!current) {
+        current = { title: "추천 대상", details: [] };
+        cards.push(current);
+      }
+      current.target = target[1].trim();
+      continue;
+    }
+
+    const [rawTitle, rawReason] = item.split(/\s+추천\s*이유\s*[:：]\s*/);
+    const [title, rawTarget] = rawTitle.split(/\s+추천\s*대상\s*[:：]\s*/);
+    current = {
+      title: title.replace(/^\d+[.)]\s*/, "").replace(/^\d+순위\s*[:：]\s*/, "").trim(),
+      reason: rawReason?.trim(),
+      target: rawTarget?.trim(),
+      details: [],
+    };
+    cards.push(current);
+  }
+
+  return cards.filter((card) => card.title || card.reason || card.target || card.details.length);
 }
 
 function speak(text: string) {
@@ -252,16 +358,53 @@ export function ElderlyAnswerView({ guide, answerText, busy, onRetryExplain, rea
                 <strong className="text-lg font-black text-bridge-dark">{getSectionTitle(section.title)}</strong>
                 <span className="border border-line bg-[#f8f7f2] px-2 py-1 text-sm font-black text-muted">{getSectionLabel(section.title)}</span>
               </div>
-              <ol className="grid gap-3">
-                {section.items.map((item, index) => (
-                  <li key={`${item}-${index}`} className="grid gap-3 border-t border-line pt-3 first:border-t-0 first:pt-0 sm:grid-cols-[54px_1fr]">
-                    <span className="grid h-10 w-10 place-items-center rounded-full bg-[#122824] text-base font-black text-[#f8d7ad]">
-                      {index + 1}
-                    </span>
-                    <p>{item}</p>
-                  </li>
-                ))}
-              </ol>
+              {isRecommendationSection(section.title) ? (
+                <div className="grid gap-3">
+                  {parseRecommendationCards(section.items).map((card, index) => (
+                    <div key={`${card.title}-${index}`} className="grid gap-2 border-t border-line pt-3 first:border-t-0 first:pt-0">
+                      <strong className="text-[1.02em] font-black text-ink">{card.title}</strong>
+                      {card.reason && (
+                        <p>
+                          <span className="font-black text-bridge-dark">추천 이유: </span>
+                          {card.reason}
+                        </p>
+                      )}
+                      {card.target && (
+                        <p className="text-[0.9em] text-muted">
+                          <span className="font-black text-bridge-dark">추천 대상: </span>
+                          {card.target}
+                        </p>
+                      )}
+                      {card.details.map((detail) => (
+                        <p key={detail}>{detail}</p>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : isStepSection(section.title) ? (
+                <ol className="grid gap-3">
+                  {section.items.map((item, index) => (
+                    <li key={`${item}-${index}`} className="grid gap-3 border-t border-line pt-3 first:border-t-0 first:pt-0 sm:grid-cols-[54px_1fr]">
+                      <span className="grid h-10 w-10 place-items-center rounded-full bg-[#122824] text-base font-black text-[#f8d7ad]">
+                        {index + 1}
+                      </span>
+                      <p>{item}</p>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <ul className="grid gap-3">
+                  {section.items.map((item, index) => {
+                    const Icon = isQuestionSection(section.title) ? HelpCircle : isCautionSection(section.title) ? AlertTriangle : Check;
+                    return (
+                      <li key={`${item}-${index}`} className="flex items-start gap-3 border-t border-line pt-3 first:border-t-0 first:pt-0">
+                        <Icon size={22} className="mt-1 shrink-0 text-bridge-dark" />
+                        <p>{item}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </article>
           ))}
         </section>
@@ -292,7 +435,7 @@ export function ElderlyAnswerView({ guide, answerText, busy, onRetryExplain, rea
           <strong className="text-lg font-black text-bridge-dark">내 상황을 반영한 부분</strong>
           <ul className="grid gap-2 text-[0.9em] leading-relaxed text-muted">
             {richAnswer.contextItems.slice(0, 6).map((item, index) => (
-              <li key={`${item}-${index}`} className="border-l-4 border-[#cfe0dc] bg-[#fbfbf8] px-3 py-2">{item}</li>
+              <li key={`${item}-${index}`} className="whitespace-pre-line border-l-4 border-[#cfe0dc] bg-[#fbfbf8] px-3 py-2">{item}</li>
             ))}
           </ul>
         </section>
@@ -324,16 +467,14 @@ export function ElderlyAnswerView({ guide, answerText, busy, onRetryExplain, rea
       {commonMistakes.length > 0 && (
         <section className={`grid gap-3 border border-line bg-white ${sectionPadding}`}>
           <strong className="text-lg font-black text-bridge-dark">실수하기 쉬운 부분</strong>
-          <ol className="grid gap-2">
-            {commonMistakes.map((item, index) => (
+          <ul className="grid gap-2">
+            {commonMistakes.map((item) => (
               <li key={item} className="flex items-start gap-3">
-                <span className={`grid ${easy ? "h-10 w-10" : "h-8 w-8"} shrink-0 place-items-center rounded-full bg-[#122824] text-base font-black text-[#f8d7ad]`}>
-                  {index + 1}
-                </span>
+                <AlertTriangle size={easy ? 24 : 21} className="mt-1 shrink-0 text-bridge-dark" />
                 <span className="pt-1">{item}</span>
               </li>
             ))}
-          </ol>
+          </ul>
         </section>
       )}
 
