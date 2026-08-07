@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   Check,
@@ -66,6 +66,33 @@ type ChatWorkspaceProps = {
   onReset: () => void;
 };
 
+type VoiceState = "idle" | "starting" | "listening";
+
+type SpeechRecognitionResultLike = {
+  0: { transcript: string };
+  isFinal?: boolean;
+};
+
+type SpeechRecognitionEventLike = {
+  resultIndex?: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+};
+
+type SpeechRecognitionInstance = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start: () => void;
+  stop: () => void;
+  abort?: () => void;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+
 export function ChatWorkspace({
   account,
   profile,
@@ -117,8 +144,17 @@ export function ChatWorkspace({
   const canGenerate = Boolean(intent && !generating);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const latestAnswerRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const voiceBaseQuestionRef = useRef("");
+  const voiceFinalTranscriptRef = useRef("");
+  const voiceLiveTranscriptRef = useRef("");
+  const voiceErrorRef = useRef(false);
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const [voiceMessage, setVoiceMessage] = useState("");
+  const [voicePreview, setVoicePreview] = useState("");
   const activeConversation = conversations.find((conversation) => conversation.id === conversationId);
   const previousTurns = activeConversation?.turns.filter((turn) => turn.id !== currentTurnId) || [];
+  const voiceActive = voiceState !== "idle";
 
   useEffect(() => {
     if (bridgePrompt) {
@@ -133,33 +169,110 @@ export function ChatWorkspace({
     await navigator.clipboard.writeText(bridgePrompt);
   };
 
+  const stopVoiceQuestion = () => {
+    if (!recognitionRef.current) return;
+    setVoiceMessage("말씀을 정리하고 있어요.");
+    recognitionRef.current.stop();
+  };
+
+  const resetQuestionFlow = () => {
+    stopVoiceQuestion();
+    setVoiceMessage("");
+    setVoicePreview("");
+    onReset();
+  };
+
   const submitQuestion = () => {
+    stopVoiceQuestion();
     if (analyzing || generating || !question.trim()) return;
     onAnalyze();
   };
 
   const startVoiceQuestion = () => {
     const voiceWindow = window as typeof window & {
-        SpeechRecognition?: new () => {
-          lang: string;
-          start: () => void;
-          onresult: (event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void;
-        };
-        webkitSpeechRecognition?: new () => {
-          lang: string;
-          start: () => void;
-          onresult: (event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void;
-        };
+        SpeechRecognition?: SpeechRecognitionConstructor;
+        webkitSpeechRecognition?: SpeechRecognitionConstructor;
       };
     const SpeechRecognition = voiceWindow.SpeechRecognition || voiceWindow.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      window.alert("이 브라우저에서는 음성 질문을 지원하지 않습니다. 글자로 질문해 주세요.");
+      setVoiceMessage("이 브라우저에서는 음성 질문을 지원하지 않습니다. 글자로 질문해 주세요.");
       return;
     }
+
+    if (recognitionRef.current) {
+      stopVoiceQuestion();
+      return;
+    }
+
     const recognition = new SpeechRecognition();
     recognition.lang = "ko-KR";
-    recognition.onresult = (event) => onQuestionChange(event.results[0][0].transcript);
-    recognition.start();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognitionRef.current = recognition;
+    voiceBaseQuestionRef.current = question.trim();
+    voiceFinalTranscriptRef.current = "";
+    voiceLiveTranscriptRef.current = "";
+    voiceErrorRef.current = false;
+    setVoiceState("starting");
+    setVoicePreview("");
+    setVoiceMessage("브라우저 권한 창에서 마이크 사용을 허용해 주세요.");
+
+    recognition.onstart = () => {
+      setVoiceState("listening");
+      setVoiceMessage("듣고 있어요. 말한 내용이 질문 칸에 바로 적힙니다.");
+    };
+
+    recognition.onresult = (event) => {
+      let finalTranscript = voiceFinalTranscriptRef.current;
+      let interimTranscript = "";
+      const startIndex = event.resultIndex ?? 0;
+
+      for (let index = startIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const text = result[0]?.transcript || "";
+        if (result.isFinal) finalTranscript = `${finalTranscript} ${text}`.trim();
+        else interimTranscript = `${interimTranscript} ${text}`.trim();
+      }
+
+      voiceFinalTranscriptRef.current = finalTranscript;
+      const currentTranscript = `${finalTranscript} ${interimTranscript}`.trim();
+      const baseQuestion = voiceBaseQuestionRef.current;
+      const nextQuestion = baseQuestion && currentTranscript
+        ? `${baseQuestion} ${currentTranscript}`.trim()
+        : currentTranscript || baseQuestion;
+
+      voiceLiveTranscriptRef.current = currentTranscript;
+      setVoicePreview(currentTranscript);
+      onQuestionChange(nextQuestion);
+    };
+
+    recognition.onerror = (event) => {
+      const denied = event.error === "not-allowed" || event.error === "service-not-allowed";
+      voiceErrorRef.current = true;
+      setVoiceMessage(denied ? "마이크 권한이 필요합니다. 브라우저 권한을 허용해 주세요." : "음성을 잘 듣지 못했어요. 다시 눌러 말씀해 주세요.");
+      setVoiceState("idle");
+      recognitionRef.current = null;
+    };
+
+    recognition.onend = () => {
+      if (voiceErrorRef.current) {
+        voiceErrorRef.current = false;
+        recognitionRef.current = null;
+        return;
+      }
+      const hasTranscript = Boolean(voiceFinalTranscriptRef.current || voiceLiveTranscriptRef.current);
+      setVoiceState("idle");
+      setVoiceMessage(hasTranscript ? "말한 내용을 질문 칸에 넣었어요. 보내기 버튼을 눌러 주세요." : "음성 입력을 멈췄어요. 다시 누르면 말로 질문할 수 있습니다.");
+      recognitionRef.current = null;
+    };
+
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setVoiceState("idle");
+      setVoiceMessage("음성 입력을 시작하지 못했어요. 잠시 후 다시 눌러 주세요.");
+    }
   };
 
   const readAnswer = () => {
@@ -173,6 +286,13 @@ export function ChatWorkspace({
     utterance.rate = easy ? 0.88 : 1;
     window.speechSynthesis.speak(utterance);
   };
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.abort?.();
+      recognitionRef.current = null;
+    };
+  }, []);
 
   return (
     <section className="flex h-screen min-h-[720px] flex-col bg-[#fbfaf6] max-lg:min-h-screen">
@@ -490,7 +610,7 @@ export function ChatWorkspace({
                 className="grid h-12 w-12 place-items-center rounded-[6px] border border-line bg-white"
                 type="button"
                 aria-label="질문 단계로 되돌리기"
-                onClick={onReset}
+                onClick={resetQuestionFlow}
               >
                 <ArrowLeft size={18} />
               </button>
@@ -499,7 +619,13 @@ export function ChatWorkspace({
               className={`max-h-40 w-full min-w-0 resize-none rounded-[6px] border-0 bg-transparent px-3 py-3 text-ink outline-none placeholder:text-muted ${easy ? "min-h-14 text-lg leading-7" : "min-h-12 text-sm leading-6"}`}
               value={question}
               placeholder="질문을 입력하세요"
-              onChange={(event) => onQuestionChange(event.target.value)}
+              onChange={(event) => {
+                if (!voiceActive && (voiceMessage || voicePreview)) {
+                  setVoiceMessage("");
+                  setVoicePreview("");
+                }
+                onQuestionChange(event.target.value);
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
@@ -510,13 +636,14 @@ export function ChatWorkspace({
             <div className="flex shrink-0 items-end justify-end gap-2">
               {!intent && (
                 <button
-                  className={`${easy ? "h-14 px-5 text-base" : "h-12 px-4 text-sm"} inline-flex items-center gap-2 rounded-[6px] border-2 border-bridge bg-[#eef8f5] font-black text-bridge`}
+                  className={`${easy ? "h-14 px-5 text-base" : "h-12 px-4 text-sm"} inline-flex items-center gap-2 rounded-[6px] border-2 font-black transition ${voiceActive ? "border-accent bg-[#fff6eb] text-[#2b180b] shadow-[0_0_0_4px_rgba(231,139,60,0.16)]" : "border-bridge bg-[#eef8f5] text-bridge hover:bg-[#e5f4ef]"}`}
                   type="button"
-                  aria-label="음성으로 질문하기"
-                  onClick={startVoiceQuestion}
+                  aria-label={voiceActive ? "음성 입력 끝내기" : "음성으로 질문하기"}
+                  aria-pressed={voiceActive}
+                  onClick={voiceActive ? stopVoiceQuestion : startVoiceQuestion}
                 >
-                  <Mic size={easy ? 24 : 19} />
-                  <span className="max-sm:hidden">말로 질문하기</span>
+                  <Mic className={voiceActive ? "animate-pulse" : ""} size={easy ? 24 : 19} />
+                  <span className={voiceActive ? "" : "max-sm:hidden"}>{voiceActive ? "말 끝내기" : "말로 질문하기"}</span>
                 </button>
               )}
               <button
@@ -524,7 +651,7 @@ export function ChatWorkspace({
                 type="button"
                 aria-label="초기화"
                 title="초기화 (대화 재설정)"
-                onClick={onReset}
+                onClick={resetQuestionFlow}
               >
                 <RefreshCw size={easy ? 20 : 18} />
               </button>
@@ -553,6 +680,28 @@ export function ChatWorkspace({
               )}
             </div>
           </div>
+
+          {(voiceActive || voiceMessage || voicePreview) && (
+            <div
+              className={`rounded-[8px] border px-4 py-3 ${voiceActive ? "border-accent bg-[#fff6eb]" : "border-[#cfe0dc] bg-[#f7fbf9]"}`}
+              aria-live="polite"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${voiceActive ? "animate-pulse bg-accent" : "bg-bridge"}`} />
+                <strong className={`${easy ? "text-base" : "text-sm"} text-ink`}>
+                  {voiceActive ? "마이크 사용 중" : "음성 입력"}
+                </strong>
+                <span className={`${easy ? "text-base" : "text-sm"} text-muted`}>
+                  {voiceMessage || "말한 내용이 질문 칸에 들어갑니다."}
+                </span>
+              </div>
+              {voicePreview && (
+                <p className={`mt-2 rounded-[6px] bg-white px-3 py-2 ${easy ? "text-lg leading-7" : "text-sm leading-6"} text-bridge-dark`}>
+                  “{voicePreview}”
+                </p>
+              )}
+            </div>
+          )}
 
           <p className="text-center text-xs leading-5 text-muted">
             Context Bridge v20 · 승인한 정보만 답변 생성에 사용하며 기밀 정보는 사용할 수 없습니다.
