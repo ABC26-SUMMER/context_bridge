@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { InteractionRecord } from "../types";
 import { Copy, Volume2 } from "lucide-react";
 import { toSpeechText } from "../services/speechText";
@@ -9,6 +10,10 @@ type ContextLogProps = {
 };
 
 export function ContextLog({ records }: ContextLogProps) {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, []);
+
   const copyAnswer = async (answer: string) => {
     await navigator.clipboard.writeText(answer);
   };

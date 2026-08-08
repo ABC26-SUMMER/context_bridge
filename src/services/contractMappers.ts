@@ -68,12 +68,11 @@ export function getInitialApprovals(evaluations: EvaluatedContext[]) {
   return Object.fromEntries(
     evaluations.map((evaluation) => [
       evaluation.contextId,
-      evaluation.suggested &&
-        evaluation.context.privacyLevel === "normal" &&
-        !evaluation.isStale &&
-        !evaluation.requiresReview &&
+      !evaluation.exclusionReason &&
         evaluation.valueVisible &&
-        !evaluation.exclusionReason,
+        evaluation.context.isActive &&
+        evaluation.context.privacyLevel === "normal" &&
+        evaluation.selectionRole !== "ignore",
     ]),
   );
 }

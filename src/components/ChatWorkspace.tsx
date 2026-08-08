@@ -143,6 +143,8 @@ export function ChatWorkspace({
   const approvedCount = approved.length;
   const canGenerate = Boolean(intent && !generating);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const approvalRef = useRef<HTMLDivElement | null>(null);
+  const generatingRef = useRef<HTMLDivElement | null>(null);
   const latestAnswerRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const voiceBaseQuestionRef = useRef("");
@@ -159,6 +161,14 @@ export function ChatWorkspace({
   useEffect(() => {
     if (bridgePrompt) {
       latestAnswerRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+      return;
+    }
+    if (generating) {
+      generatingRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+      return;
+    }
+    if (intent) {
+      approvalRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
       return;
     }
     bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
@@ -394,6 +404,7 @@ export function ChatWorkspace({
           )}
 
           {intent && (
+            <div ref={approvalRef} className="scroll-mt-5">
             <AssistantMessage easy={easy} eyebrow="내 정보 확인" title={`AI가 이 질문에 필요한 정보 ${approvalPool.length}개를 찾았어요`}>
               <div className="grid gap-4">
                 <div className="rounded-[6px] border border-[#cfe0dc] bg-[#f6fbf9] p-4">
@@ -457,13 +468,16 @@ export function ChatWorkspace({
                 )}
               </div>
             </AssistantMessage>
+            </div>
           )}
 
           {generating && (
+            <div ref={generatingRef} className="scroll-mt-5">
             <LoadingMessage
               title="선택한 정보로 답변을 만들고 있어요"
               body={`${approvedCount}개 정보를 반영하고 있습니다.`}
             />
+            </div>
           )}
 
           {bridgePrompt && easy && elderlyGuides.length > 0 ? (
